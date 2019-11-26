@@ -28,11 +28,7 @@ public class Com {
      * @return a boolean indicating if it was able to send the message or not.
      */
     public boolean sendParent(Message message) {
-        try {
-            return send(this.parent, message, 0);
-        } catch (TimeoutException e) {
-            return false;
-        }
+        return send(this.parent, message);
     }
 
     /**
@@ -60,7 +56,7 @@ public class Com {
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
                 throw new IllegalArgumentException("The child with id \"" + childId + "\" could not be found.");
-            return sendWithoutTimeout(this.children.get(childId), message);
+            return send(this.children.get(childId), message);
         }
     }
 
@@ -84,7 +80,9 @@ public class Com {
         }
     }
 
-    private boolean sendWithoutTimeout(BlockingQueue<Message> queue, Message message) {
+    // Receives a message without using a timeout.
+    // This function works as an intermediate to remove the checked TimeoutException.
+    private boolean send(BlockingQueue<Message> queue, Message message) {
         try {
             return send(queue, message, 0);
         } catch (TimeoutException e) {
@@ -116,12 +114,7 @@ public class Com {
      * @return a Optional containing a Message or null if it was unable to receive a message.
      */
     public Message recvParent() {
-        try {
-            return recv(this.parent, 0);
-        } catch (TimeoutException e) {
-            // Should not be possible to end up here since the timeout is set to infinite.
-            return null;
-        }
+        return recv(this.parent);
     }
 
     /**
@@ -147,7 +140,7 @@ public class Com {
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
                 throw new IllegalArgumentException("The child with id \"" + childId + "\" could not be found.");
-            return recvWithoutTimeout(this.children.get(childId));
+            return recv(this.children.get(childId));
         }
     }
 
@@ -170,7 +163,9 @@ public class Com {
         }
     }
 
-    private Message recvWithoutTimeout(BlockingQueue<Message> queue) {
+    // Receives a message without using a timeout.
+    // This function works as an intermediate to remove the checked TimeoutException.
+    private Message recv(BlockingQueue<Message> queue) {
         try {
             return recv(queue, 0);
         } catch (TimeoutException e) {
