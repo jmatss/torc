@@ -3,6 +3,7 @@ package com.github.jmatss.torc.bittorrent;
 import java.util.HashMap;
 import java.util.Map;
 
+// https://wiki.theory.org/index.php/BitTorrentSpecification#Messages
 public enum MessageType {
     KEEP_ALIVE(-1),
     CHOKE(0),
@@ -10,10 +11,11 @@ public enum MessageType {
     INTERESTED(2),
     NOT_INTERESTED(3),
     HAVE(4),
-    BIT_FIELD(5),
+    BITFIELD(5),
     REQUEST(6),
     PIECE(7),
-    CANCEL(8);
+    CANCEL(8),
+    PORT(9);
 
     public static Map<Integer, MessageType> lookup;
     private final int i;
