@@ -7,6 +7,16 @@
     <groupId>com.github.jmatss.torc</groupId>
     <artifactId>torc</artifactId>
     <version>1.0</version>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.5.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
             <plugin>
@@ -20,6 +30,4 @@
             </plugin>
         </plugins>
     </build>
-
-
 </project>
