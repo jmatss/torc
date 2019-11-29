@@ -35,8 +35,8 @@ public enum MessageType {
     }
 
     public static MessageType valueOf(int key) throws IncorrectMessageTypeException {
-        MessageType messageType;
-        if ((messageType = MessageType.lookup.get(key)) == null)
+        MessageType messageType = MessageType.lookup.get(key);
+        if (messageType == null)
             throw new IncorrectMessageTypeException("Received incorrect MessageType: " + key);
         return messageType;
     }

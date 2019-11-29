@@ -54,6 +54,6 @@ public class Controller {
     }
 
     private List<Torrent> fetchTorrents() {
-        return;
+        return Collections.emptyList();
     }
 }
