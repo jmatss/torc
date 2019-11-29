@@ -31,7 +31,7 @@ public enum BencodeType {
     }
 
     // FIXME: Make this work in a better way, or remove func completely.
-    public char getChar(BencodeType bencodeType) {
-        return bencodeType.c[0];
+    public char getChar() {
+        return this.c[0];
     }
 }

@@ -8,6 +8,16 @@ import java.nio.CharBuffer;
 import java.nio.file.Files;
 import java.util.*;
 
+/**
+ * Class used to decode(/encode) bencoding.
+ * See: https://wiki.theory.org/index.php/BitTorrentSpecification#Bencoding
+ *
+ * Conversion between bencode types and Java types:
+ *  dictionary <=> Map<String, BencodeResult>
+ *  list       <=> List<BencodeResult>
+ *  string     <=> String
+ *  integer    <=> long
+ */
 public class Bencode {
     public static final String ENCODING = "utf-8";
     public static final char STRING_SEPARATOR = ':';
@@ -31,6 +41,43 @@ public class Bencode {
         );
     }
 
+    /**
+     * Rewinds/resets the internal CharBuffer position to point at the start of the buffer.
+     */
+    public void rewind() {
+        this.buffer.rewind();
+    }
+
+    /**
+     * Used to see what type the next "structure" is (dict, list, string or integer).
+     *
+     * @return the BencodeType of the next structure.
+     * @throws EOFException     when this function is called when there are no more data to decode.
+     * @throws BencodeException when the given bencoded data has incorrect format.
+     */
+    public BencodeType getNextType() throws EOFException, BencodeException {
+        if (!this.buffer.hasRemaining())
+            throw new EOFException();
+
+        int oldPosition = this.buffer.position();
+        char typeChar = this.buffer.get();
+        BencodeType type = BencodeType.valueOf(typeChar);
+        if (type == null)
+            throw new BencodeException("Incorrect format of bencoded data. Expected BencodeType, got: " + typeChar);
+
+        // Reset position so that the next "read" of the buffer starts at the correct position.
+        this.buffer.position(oldPosition);
+        return type;
+    }
+
+    /**
+     * Gets the next bencode "structure" (dict, list, string or integer).
+     *
+     * @return the next structure wrapped inside a BencodeResult
+     * @throws EOFException                 when this function is called when there are no more data to decode.
+     * @throws BencodeException             when the given bencoded data has incorrect format.
+     * @throws UnsupportedEncodingException if utf-8 isn't supported.
+     */
     public BencodeResult getNext() throws EOFException, BencodeException, UnsupportedEncodingException {
         BencodeType type = getNextType();
         BencodeResult<?> result;
@@ -55,26 +102,17 @@ public class Bencode {
         return result;
     }
 
-    public BencodeType getNextType() throws EOFException, BencodeException {
-        if (!this.buffer.hasRemaining())
-            throw new EOFException();
-
-        int oldPosition = this.buffer.position();
-        char typeChar = this.buffer.get();
-        BencodeType type = BencodeType.valueOf(typeChar);
-        if (type == null)
-            throw new BencodeException("Incorrect format of bencoded data. Expected BencodeType, got: " + typeChar);
-
-        // Reset position so that the next "read" of the buffer starts at the correct position.
-        this.buffer.position(oldPosition);
-        return type;
-    }
-
     public String getString() throws BencodeException {
-        StringBuilder sb = new StringBuilder();
+        // Make sure that the first character is a digit.
+        char startChar = this.buffer.get();
+        if (!Character.isDigit(startChar)) {
+            throw new BencodeException("Incorrect startChar while decoding string. " +
+                    "Expected: a digit, got: " + startChar);
+        }
 
+        StringBuilder sb = new StringBuilder(Character.toString(startChar));
         char current;
-        while ((current = buffer.get()) != STRING_SEPARATOR) {
+        while ((current = this.buffer.get()) != STRING_SEPARATOR) {
             if (!Character.isDigit(current))
                 throw new BencodeException("Received non digit character while parsing string length: " + current);
             sb.append(current);
@@ -88,23 +126,34 @@ public class Bencode {
         return new String(str);
     }
 
-    public Long getNumber() {
-        this.buffer.position(this.buffer.position() + 1);   // "Remove" 'i'.
+    public Long getNumber() throws BencodeException {
+        // "Remove" the first char and make sure it is a 'i'.
+        char startChar = this.buffer.get();
+        if (BencodeType.valueOf(startChar) != BencodeType.NUMBER) {
+            throw new BencodeException("Incorrect startChar while decoding number. " +
+                    "Expected: " + BencodeType.NUMBER.getChar() + ", got: " + startChar);
+        }
 
         StringBuilder sb = new StringBuilder();
         char current;
         while (Character.isDigit(current = buffer.get())) {
             sb.append(current);
         }
-        // The last iteration of the while loop "removes" the 'e'.
+        // The last iteration of the while loop "removes" the ending 'e'.
 
         return Long.parseLong(sb.toString());
     }
 
-    public Map<String, BencodeResult> getDictionary() throws EOFException, BencodeException, UnsupportedEncodingException {
-        this.buffer.position(this.buffer.position() + 1);   // "Remove" 'd'.
-        Map<String, BencodeResult> map = new HashMap<>();
+    public Map<String, BencodeResult> getDictionary()
+    throws EOFException, BencodeException, UnsupportedEncodingException {
+        // "Remove" the first char and make sure it is a 'd'.
+        char startChar = this.buffer.get();
+        if (BencodeType.valueOf(startChar) != BencodeType.DICTIONARY) {
+            throw new BencodeException("Incorrect startChar while decoding dictionary. " +
+                    "Expected: " + BencodeType.DICTIONARY.getChar() + ", got: " + startChar);
+        }
 
+        Map<String, BencodeResult> map = new HashMap<>();
         BencodeType nextKeyType;
         while ((nextKeyType = getNextType()) != BencodeType.END) {
             if (nextKeyType != BencodeType.STRING)
@@ -112,19 +161,25 @@ public class Bencode {
             map.put(getString(), getNext());
         }
 
-        this.buffer.position(this.buffer.position() + 1);   // "Remove" 'e'.
+        this.buffer.position(this.buffer.position() + 1);   // "Remove" the ending 'e'.
         return map;
     }
 
-    public List<BencodeResult> getList() throws EOFException, BencodeException, UnsupportedEncodingException {
-        this.buffer.position(this.buffer.position() + 1);   // "Remove" 'l'.
-        List<BencodeResult> list = new ArrayList<>();
+    public List<BencodeResult> getList()
+    throws EOFException, BencodeException, UnsupportedEncodingException {
+        // "Remove" the first char and make sure it is a 'l'.
+        char startChar = this.buffer.get();
+        if (BencodeType.valueOf(startChar) != BencodeType.LIST) {
+            throw new BencodeException("Incorrect startChar while decoding list. " +
+                    "Expected: " + BencodeType.LIST.getChar() + ", got: " + startChar);
+        }
 
+        List<BencodeResult> list = new ArrayList<>();
         while (getNextType() != BencodeType.END) {
             list.add(getNext());
         }
 
-        this.buffer.position(this.buffer.position() + 1);   // "Remove" 'e'.
+        this.buffer.position(this.buffer.position() + 1);   // "Remove" the ending 'e'.
         return list;
     }
 }
