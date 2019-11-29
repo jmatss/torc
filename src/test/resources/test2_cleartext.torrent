@@ -1,0 +1,9 @@
+d
+	8:announce 22:https://www.testURL.se
+	4:info d
+		4:name 9:test.data
+		12:piece length i2e
+		6:pieces 40:(a94a8fe5ccb19ba61c4c0873d391e987982fbbd3 as binary, )
+		6:length i4e
+	e
+e

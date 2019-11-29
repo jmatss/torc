@@ -1,0 +1,22 @@
+d
+	8:announce 22:https://www.testURL.se
+	4:info d
+		4:name 0:
+		12:piece length i7e
+		6:pieces 20: (8865096550cb3439aa1ae8ce209fd18a0be8d76f (teståäö) as binary)
+		5:files l
+			d
+				6:length i4e
+				4:path l
+					9:test.data
+				e
+			e
+			d
+				6:length i6e
+				4:path l
+					11:åäö.data
+				e
+			e
+		e
+	e
+e
