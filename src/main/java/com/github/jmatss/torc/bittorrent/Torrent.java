@@ -49,7 +49,7 @@ public class Torrent {
     private final Path name;
 
     // Contains info regarding the files of the torrent.
-    private final List<FILE_TEMP> files;
+    private final List<TorrentFile> files;
 
     // SHA1 hashes of all pieces concatenated (pieces.length % 20 == 0).
     private final byte[][] pieces;
@@ -58,43 +58,12 @@ public class Torrent {
     // All pieces have the same length expected the last one that will be less that pieceLength.
     private final long pieceLength;
 
-    private class FILE_TEMP {
-        private final long index;
-        private final long length;
-        private final Path path;    // TODO: List of strings instead(?)
-
-        FILE_TEMP(long index, long length, Path path) {
-            this.index = index;
-            this.length = length;
-            this.path = path;
-        }
-
-        FILE_TEMP(long index, long length, String path) {
-            this.index = index;
-            this.length = length;
-            this.path = Paths.get(path);
-        }
-
-        public long getIndex() {
-            return this.index;
-        }
-
-        public long getLength() {
-            return this.length;
-        }
-
-        public Path getPath() {
-            return this.path;
-        }
-    }
-
-    // FIXME: See .torrent structure in README.md.
-    public Torrent(String filename) throws IOException, BencodeException {
-        File f = new File(filename);
+    public Torrent(Path filename) throws BencodeException, IOException {
+        File f = new File(filename.toUri());
         if (!f.exists())
-            throw new IOException("File \"" + filename + "\" doesn't exist.");
+            throw new IOException("File \"" + filename.toString() + "\" doesn't exist.");
         else if (!f.isFile())
-            throw new IOException("File \"" + filename + "\" isn't a valid file.");
+            throw new IOException("File \"" + filename.toString() + "\" isn't a valid file.");
 
         Bencode bencode = new Bencode(f);
         Map<String, BencodeResult> torrentDictionary = bencode.getDictionary();
@@ -152,7 +121,7 @@ public class Torrent {
             BencodeResult length = info.get("length");
             if (length == null || length.getType() != BencodeType.NUMBER)
                 throw new BencodeException("Incorrect \"length\" field.");
-            this.files = List.of(new FILE_TEMP(0, (long) length.getValue(), this.name));
+            this.files = List.of(new TorrentFile(0, (long) length.getValue(), this.name));
         } else {
             // FILES
             BencodeResult filesResult = torrentDictionary.get("files");
@@ -191,9 +160,46 @@ public class Torrent {
                     pathStrings.add((String) p.getValue());
                 }
 
-                this.files.add(new FILE_TEMP(i, length, String.join(File.separator, pathStrings)));
+                this.files.add(new TorrentFile(i, length, String.join(File.separator, pathStrings)));
                 i++;
             }
         }
+    }
+
+    // FIXME: See .torrent structure in README.md.
+    public Torrent(String filename) throws IOException, BencodeException {
+        this(Paths.get(filename));
+    }
+
+    public Tracker getTracker() {
+        return this.tracker;
+    }
+
+    public String getAnnounce() {
+        return this.announce;
+    }
+
+    public byte[] getBitfieldHave() {
+        return this.bitfieldHave;
+    }
+
+    public byte[] getBitfieldDownloading() {
+        return this.bitfieldDownloading;
+    }
+
+    public Path getName() {
+        return this.name;
+    }
+
+    public List<TorrentFile> getFiles() {
+        return this.files;
+    }
+
+    public byte[][] getPieces() {
+        return this.pieces;
+    }
+
+    public long getPieceLength() {
+        return this.pieceLength;
     }
 }
