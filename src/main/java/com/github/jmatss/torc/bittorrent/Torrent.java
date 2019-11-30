@@ -112,6 +112,10 @@ public class Torrent {
             this.pieces[i] = currentDigest;
         }
 
+        // BITFIELDS
+        this.bitfieldHave = new Bitfield(this.pieces.length);
+        this.bitfieldDownloading = new Bitfield(this.pieces.length);
+
         // If true: this is a single-file torrent.
         // Else: this is a multi-file torrent.
         if (!info.containsKey(toBenString("files"))) {
