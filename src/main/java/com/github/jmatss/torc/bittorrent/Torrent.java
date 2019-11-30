@@ -36,12 +36,12 @@ public class Torrent {
 
     // Contains the bitfield of the pieces that this client have downloaded
     // and can be seeded to other clients.
-    private byte[] bitfieldHave;
+    private Bitfield bitfieldHave;
 
     // Contains the bitfield of the pieces that this client have downloaded (= bitfieldHave)
     // and also the pieces that the this client are currently downloading.
     // This can be used to see which pieces that are free to start downloading.
-    private byte[] bitfieldDownloading;
+    private Bitfield bitfieldDownloading;
 
     // Contains the "root" directory if this torrent is a "multi-file torrent".
     // Contains the path (== files[0].path) if this torrent is "single-file torrent".
@@ -177,11 +177,11 @@ public class Torrent {
         return this.announce;
     }
 
-    public byte[] getBitfieldHave() {
+    public Bitfield getBitfieldHave() {
         return this.bitfieldHave;
     }
 
-    public byte[] getBitfieldDownloading() {
+    public Bitfield getBitfieldDownloading() {
         return this.bitfieldDownloading;
     }
 
