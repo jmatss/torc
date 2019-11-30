@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class BitfieldTest {
     private static final int amountOfPieces = 10;
-    private static final int index = 3;
     private static Bitfield bitfield;
 
     @BeforeEach
@@ -48,6 +47,7 @@ public class BitfieldTest {
 
     @Test
     public void testTrySet() {
+        int index = 7;
         assertFalse(bitfield.isSet(index));
         assertTrue(bitfield.trySet(index));
         assertTrue(bitfield.isSet(index));
@@ -55,6 +55,7 @@ public class BitfieldTest {
 
     @Test
     public void testTrySetReturnsFalseWhenIndexAlreadyIsSet() {
+        int index = 8;
         assertFalse(bitfield.isSet(index));
         assertTrue(bitfield.trySet(index));
         assertTrue(bitfield.isSet(index));
