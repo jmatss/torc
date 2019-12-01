@@ -12,15 +12,16 @@ import java.util.concurrent.Executors;
 public class Controller {
     // TODO: remove this temp download root path
     private static final String DOWNLOAD_ROOT_PATH = "";
+    private static byte[] peerId = null;
 
     private final ExecutorService executor;
-    private final byte[] peerId;
     private final String rootPath;
 
     Controller() {
         int processors = Runtime.getRuntime().availableProcessors();
         this.executor = Executors.newFixedThreadPool(processors);
-        this.peerId = newPeerId();
+        if (peerId == null)
+            peerId = newPeerId();
         this.rootPath = DOWNLOAD_ROOT_PATH;
     }
 
@@ -36,8 +37,8 @@ public class Controller {
         }
     }
 
-    public byte[] getPeerId() {
-        return this.peerId;
+    public static byte[] getPeerId() {
+        return peerId;
     }
 
     // Format of peer id: -<client id(2 bytes)><version(4 bytes)>-<12 random ascii numbers>
