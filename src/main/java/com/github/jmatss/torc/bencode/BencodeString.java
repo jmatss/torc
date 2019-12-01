@@ -3,6 +3,8 @@ package com.github.jmatss.torc.bencode;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
+import static com.github.jmatss.torc.TMP_CONST.ENCODING;
+
 public class BencodeString {
     private final byte[] bytes;
     private final String string;
@@ -32,6 +34,14 @@ public class BencodeString {
     @Override
     public int hashCode() {
         return 31 * this.string.hashCode() + Arrays.hashCode(this.bytes);
+    }
+
+    public static BencodeString toBenString(String s) throws UnsupportedEncodingException {
+        return new BencodeString(s, ENCODING);
+    }
+
+    public static String fromBenString(BencodeResult bencodeResult) throws BencodeException {
+        return ((BencodeString) bencodeResult.getValue()).getString();
     }
 
     public byte[] getBytes() {
