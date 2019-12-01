@@ -37,7 +37,7 @@ public class Bencode {
     }
 
     /**
-     * Rewinds/resets the internal CharBuffer position to point at the start of the buffer.
+     * Rewinds/resets the internal ByteBuffer position to point at the start of the buffer.
      */
     public void rewind() {
         this.buffer.rewind();
@@ -117,6 +117,7 @@ public class Bencode {
         int stringLength = Integer.parseInt(sb.toString());
         byte[] bytes = new byte[stringLength];
         this.buffer.get(bytes);
+
         return new BencodeString(bytes, ENCODING);
     }
 
