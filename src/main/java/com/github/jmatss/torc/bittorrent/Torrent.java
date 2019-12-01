@@ -32,6 +32,8 @@ public class Torrent {
     // Mutex used when changing filename or moving the file.
     private final Lock mutex;
 
+    private final byte[] peerId;
+
     // Contains data related to the active tracker.
     private Tracker tracker;
 
@@ -61,7 +63,7 @@ public class Torrent {
     // All pieces have the same length expected the last one that will be less that pieceLength.
     private final long pieceLength;
 
-    public Torrent(File f) throws BencodeException, IOException {
+    public Torrent(File f, byte[] peerId) throws BencodeException, IOException {
         if (!f.exists())
             throw new IOException("File \"" + f.getAbsolutePath() + "\" doesn't exist.");
         else if (!f.isFile())
@@ -71,6 +73,8 @@ public class Torrent {
         Map<BencodeString, BencodeResult> torrentDictionary = bencode.getDictionary();
 
         this.mutex = new ReentrantLock();
+        this.peerId = peerId;
+        this.tracker = null;
 
         // ANNOUNCE
         BencodeResult announce = torrentDictionary.get(toBenString("announce"));
@@ -172,16 +176,11 @@ public class Torrent {
                 index++;
             }
         }
-
-        // TRACKER
-        var tracker = new Tracker(getFiles());
-        tracker.sendTrackerRequest(getAnnounce());
-        this.tracker = tracker;
     }
 
     // FIXME: See .torrent structure in README.md.
-    public Torrent(String filename) throws IOException, BencodeException {
-        this(new File(filename));
+    public Torrent(String filename, byte[] peerId) throws IOException, BencodeException {
+        this(new File(filename), peerId);
     }
 
     public Torrent lock() {
@@ -195,6 +194,24 @@ public class Torrent {
 
     public Tracker getTracker() {
         return this.tracker;
+    }
+
+    public void sendTrackerRequest() throws IOException, BencodeException {
+        if (this.tracker == null)
+            this.tracker = new Tracker(this.files, this.peerId);
+        this.tracker.sendRequest(this.announce);
+    }
+
+    public void sendTrackerCompleted() throws IOException, BencodeException {
+        if (this.tracker == null)
+            throw new IllegalStateException("Trying to send Completed to a tracker that is null.");
+        this.tracker.sendCompleted(this.announce);
+    }
+
+    public void sendTrackerStopped() throws IOException, BencodeException {
+        if (this.tracker == null)
+            throw new IllegalStateException("Trying to send Stopped to a tracker that is null.");
+        this.tracker.sendStopped(this.announce);
     }
 
     public URL getAnnounce() {
