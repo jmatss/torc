@@ -16,7 +16,7 @@ import static com.github.jmatss.torc.TMP_CONST.ENCODING;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TorrentTest {
-    private static byte[] peerId;
+    private static byte[] peerId;   // 20 'A's
 
     @BeforeAll
     public static void setUp() {
