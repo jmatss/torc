@@ -1,11 +1,14 @@
 package com.github.jmatss.torc.bittorrent;
 
 import com.github.jmatss.torc.bencode.BencodeException;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -13,14 +16,22 @@ import static com.github.jmatss.torc.TMP_CONST.ENCODING;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TorrentTest {
+    private static byte[] peerId;
+
+    @BeforeAll
+    public static void setUp() {
+        peerId = new byte[20];
+        Arrays.fill(peerId, (byte) 'A');
+    }
+
     @Test
     public void testCreatingTorrentFromSingleFileTorrentCorrectly() throws IOException, BencodeException {
         String filename = "test1.torrent";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
-        Torrent torrent = new Torrent(path);
+        Torrent torrent = new Torrent(path, peerId);
 
         // EXPECTED
-        String expectedAnnounce = "https://www.testURL.se";
+        URL expectedAnnounce = new URL("https://www.testURL.se");
         Path expectedName = Paths.get("test.data");
         long expectedPieceLength = 4;
         long expectedLength = 4;
@@ -29,7 +40,7 @@ public class TorrentTest {
         byte[] expectedPiece = toDigest("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3");
 
         // ACTUAL
-        String actualAnnounce = torrent.getAnnounce();
+        URL actualAnnounce = torrent.getAnnounce();
         Path actualName = torrent.getName();
         long actualPieceLength = torrent.getPieceLength();
         long actualLength = torrent.getFiles().get(0).getLength();
@@ -53,10 +64,10 @@ public class TorrentTest {
     throws IOException, BencodeException {
         String filename = "test2.torrent";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
-        Torrent torrent = new Torrent(path);
+        Torrent torrent = new Torrent(path, peerId);
 
         // EXPECTED
-        String expectedAnnounce = "https://www.testURL.se";
+        URL expectedAnnounce = new URL("https://www.testURL.se");
         Path expectedName = Paths.get("test.data");
         long expectedPieceLength = 2;
         long expectedLength = 4;
@@ -68,7 +79,7 @@ public class TorrentTest {
         };
 
         // ACTUAL
-        String actualAnnounce = torrent.getAnnounce();
+        URL actualAnnounce = torrent.getAnnounce();
         Path actualName = torrent.getName();
         long actualPieceLength = torrent.getPieceLength();
         long actualLength = torrent.getFiles().get(0).getLength();
@@ -94,10 +105,10 @@ public class TorrentTest {
     public void testCreatingTorrentFromMultiFileTorrentCorrectly() throws IOException, BencodeException {
         String filename = "test3.torrent";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
-        Torrent torrent = new Torrent(path);
+        Torrent torrent = new Torrent(path, peerId);
 
         // EXPECTED
-        String expectedAnnounce = "https://www.testURL.se";
+        URL expectedAnnounce = new URL("https://www.testURL.se");
         Path expectedName = Paths.get("");
         long expectedPieceLength = 7;
         int expectedAmountOfFiles = 2;
@@ -113,7 +124,7 @@ public class TorrentTest {
         };
 
         // ACTUAL
-        String actualAnnounce = torrent.getAnnounce();
+        URL actualAnnounce = torrent.getAnnounce();
         Path actualName = torrent.getName();
         long actualPieceLength = torrent.getPieceLength();
         byte[] actualPiece = torrent.getPieces()[0];
