@@ -22,10 +22,8 @@ public class Tracker {
 
     private final Lock mutex;
 
-    /*
-    private final byte[] infoHash;
+    // TODO: private final byte[] infoHash;
     private String trackerId;
-     */
     private final byte[] peerId;
 
     private long uploaded;
@@ -251,8 +249,8 @@ public class Tracker {
                 throw new BencodeException("Incorrect format of peers.");
             }
 
+            this.trackerId = trackerId;
             this.interval = interval;
-            // this.trackerId = trackerId;
             this.seeders = seeders;
             this.leechers = leechers;
 
@@ -268,4 +266,39 @@ public class Tracker {
         }
     }
 
+    public String getTrackerId() {
+        return this.trackerId;
+    }
+
+    public byte[] getPeerId() {
+        return this.peerId;
+    }
+
+    public long getUploaded() {
+        return this.uploaded;
+    }
+
+    public long getDownloaded() {
+        return this.downloaded;
+    }
+
+    public long getLeft() {
+        return this.left;
+    }
+
+    public long getInterval() {
+        return this.interval;
+    }
+
+    public long getSeeders() {
+        return this.seeders;
+    }
+
+    public long getLeechers() {
+        return this.leechers;
+    }
+
+    public Map<String, Peer> getPeers() {
+        return this.peers;
+    }
 }
