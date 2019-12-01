@@ -9,8 +9,8 @@ public class Peer {
     /*
     private final Lock mutex;
 */
-    private final InetAddress ip;   /*
-    private final int port;
+    private final InetAddress ip;
+    private final int port; /*
     private final String hostAndPort;
 
     private Socket connection;
@@ -27,8 +27,8 @@ public class Peer {
         if (port >= (1 << 16) || port <= 0)
             throw new IllegalArgumentException("Received a invalid port number: " + port);
 
-        this.ip = host;  /*
-        this.port = port;
+        this.ip = host;
+        this.port = port;   /*
 
         this.amChoking = true;
         this.amInterested = false;
@@ -43,5 +43,9 @@ public class Peer {
 
     public InetAddress getIp() {
         return this.ip;
+    }
+
+    public int getPort() {
+        return this.port;
     }
 }
