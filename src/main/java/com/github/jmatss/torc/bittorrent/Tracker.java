@@ -1,10 +1,8 @@
 package com.github.jmatss.torc.bittorrent;
 
-import com.github.jmatss.torc.Controller;
 import com.github.jmatss.torc.bencode.*;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -28,6 +26,7 @@ public class Tracker {
     private final byte[] infoHash;
     private String trackerId;
      */
+    private final byte[] peerId;
 
     private long uploaded;
     private long downloaded;
@@ -43,8 +42,10 @@ public class Tracker {
     // The key used in the map is the IP address of the peer in String format.
     private final Map<String, Peer> peers;
 
-    public Tracker(List<TorrentFile> files) {
+    public Tracker(List<TorrentFile> files, byte[] peerId) {
         this.mutex = new ReentrantLock();
+
+        this.peerId = peerId;
 
         this.uploaded = 0;
         this.downloaded = 0;
@@ -62,35 +63,42 @@ public class Tracker {
         this.peers = new HashMap<>();
     }
 
-    /*
     public Tracker lock() {
         this.mutex.lock();
         return this;
     }
-     */
 
-    /*
     public Tracker unlock() {
         this.mutex.unlock();
         return this;
     }
-     */
 
-    public void sendTrackerRequest(URL announce) throws IOException, BencodeException {
-        if (!this.started)
-            sendTrackerRequest(announce, Event.STARTED);
-        else
-            sendTrackerRequest(announce, Event.NONE);
+    public void sendCompleted(URL announce) throws IOException, BencodeException {
+        if (this.completed)
+            throw new IllegalStateException("Sending COMPLETED to tracker while this tracker already is completed.");
+        sendRequest(announce, Event.COMPLETED);
+        this.completed = true;
     }
 
-    public void sendTrackerRequest(URL announce, Event event) throws IOException, BencodeException {
+    public void sendStopped(URL announce) throws IOException, BencodeException {
+        sendRequest(announce, Event.STOPPED);
+    }
+
+    public void sendRequest(URL announce) throws IOException, BencodeException {
+        if (!this.started)
+            sendRequest(announce, Event.STARTED);
+        else
+            sendRequest(announce, Event.NONE);
+    }
+
+    private void sendRequest(URL announce, Event event) throws IOException, BencodeException {
         // TODO: set timeouts.
         HttpURLConnection conn = (HttpURLConnection) announce.openConnection();
         try {
             conn.setRequestMethod("GET");
             // TODO: infoHash
-            conn.setRequestProperty("info_hash", "a");
-            conn.setRequestProperty("peer_id", URLEncode(Controller.getPeerId()));
+            conn.setRequestProperty("info_hash", "TEMPORARY VALUE");
+            conn.setRequestProperty("peer_id", URLEncode(this.peerId));
             conn.setRequestProperty("port", URLEncode(String.valueOf(Torrent.PORT)));
             conn.setRequestProperty("uploaded", URLEncode(this.uploaded));
             conn.setRequestProperty("downloaded", URLEncode(this.downloaded));
@@ -104,8 +112,7 @@ public class Tracker {
                         "" + responseCode + " (" + conn.getResponseMessage() + ")");
             }
 
-            InputStream in = conn.getInputStream();
-            byte[] content = in.readAllBytes();
+            byte[] content = conn.getInputStream().readAllBytes();
             updateFromResponse(content);
 
         } finally {
@@ -243,6 +250,11 @@ public class Tracker {
             } else {
                 throw new BencodeException("Incorrect format of peers.");
             }
+
+            this.interval = interval;
+            // this.trackerId = trackerId;
+            this.seeders = seeders;
+            this.leechers = leechers;
 
             // TODO: Will need some sort of mechanism to remove old peers that might have exited or
             //  just doesn't have the pieces that this client needs.
