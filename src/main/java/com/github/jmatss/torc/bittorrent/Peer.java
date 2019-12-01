@@ -2,14 +2,14 @@ package com.github.jmatss.torc.bittorrent;
 
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.concurrent.locks.Lock;
 
 public class Peer {
+    /*
     private final Lock mutex;
-
-    private final boolean usingIp;
-    private final InetAddress ip;
-    private final String hostname;
+*/
+    private final InetAddress ip;   /*
     private final int port;
     private final String hostAndPort;
 
@@ -21,5 +21,27 @@ public class Peer {
     private boolean peerChoking;
     private boolean peerInterested;
 
+     */
 
+    Peer(InetAddress host, int port) throws UnknownHostException {
+        if (port >= (1 << 16) || port <= 0)
+            throw new IllegalArgumentException("Received a invalid port number: " + port);
+
+        this.ip = host;  /*
+        this.port = port;
+
+        this.amChoking = true;
+        this.amInterested = false;
+        this.peerChoking = true;
+        this.peerInterested = false;
+         */
+    }
+
+    Peer(String host, int port) throws UnknownHostException {
+        this(InetAddress.getByName(host), port);
+    }
+
+    public InetAddress getIp() {
+        return this.ip;
+    }
 }
