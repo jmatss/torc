@@ -1,7 +1,7 @@
 package com.github.jmatss.torc.bittorrent;
 
+import java.io.File;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class TorrentFile {
     private final long index;
@@ -14,10 +14,12 @@ public class TorrentFile {
         this.path = path;
     }
 
+    TorrentFile(long index, long length, File path) {
+        this(index, length, path.toPath());
+    }
+
     TorrentFile(long index, long length, String path) {
-        this.index = index;
-        this.length = length;
-        this.path = Paths.get(path);
+        this(index, length, new File(path));
     }
 
     public long getIndex() {
