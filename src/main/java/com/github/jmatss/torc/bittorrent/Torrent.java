@@ -2,9 +2,8 @@ package com.github.jmatss.torc.bittorrent;
 
 import com.github.jmatss.torc.bencode.*;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,8 +13,9 @@ import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static com.github.jmatss.torc.TMP_CONST.ENCODING;
 import static com.github.jmatss.torc.TMP_CONST.SHA1_HASH_LENGTH;
+import static com.github.jmatss.torc.bencode.BencodeString.fromBenString;
+import static com.github.jmatss.torc.bencode.BencodeString.toBenString;
 
 
 /**
@@ -24,6 +24,10 @@ import static com.github.jmatss.torc.TMP_CONST.SHA1_HASH_LENGTH;
 public class Torrent {
     public static final int PORT = 6881;    // TODO: Make list of ports 6881-6889 instead(?)
     public static final int MAX_REQUEST_LENGTH = 1 << 14;   // 2^14 most common.
+    public static final int ALLOW_COMPACT = 1;  // 0 == disallow (se README)
+
+    public static final long CONNECT_TIMEOUT = 5000;
+    public static final long READ_TIMEOUT = 5000;
 
     // Mutex used when changing filename or moving the file.
     private final Lock mutex;
@@ -32,7 +36,7 @@ public class Torrent {
     private Tracker tracker;
 
     // Contains the URL of the tracker.
-    private final String announce;
+    private final URL announce;
 
     // Contains the bitfield of the pieces that this client have downloaded
     // and can be seeded to other clients.
@@ -72,7 +76,7 @@ public class Torrent {
         BencodeResult announce = torrentDictionary.get(toBenString("announce"));
         if (announce == null || announce.getType() != BencodeType.STRING)
             throw new BencodeException("Incorrect \"announce\" field.");
-        this.announce = fromBenString(announce);
+        this.announce = new URL(fromBenString(announce));
 
         // INFO
         BencodeResult infoResult = torrentDictionary.get(toBenString("info"));
@@ -80,6 +84,8 @@ public class Torrent {
             throw new BencodeException("Incorrect \"info\" field.");
         @SuppressWarnings("unchecked")
         var info = (Map<BencodeString, BencodeResult>) infoResult.getValue();
+
+        // TODO: Get infoHash.
 
         // NAME
         BencodeResult name = info.get(toBenString("name"));
@@ -134,7 +140,7 @@ public class Torrent {
 
             this.files = new ArrayList<>(files.size());
 
-            int i = 0;
+            int index = 0;
             for (BencodeResult fileResult : files) {
                 // FILE
                 if (fileResult == null || fileResult.getType() != BencodeType.DICTIONARY)
@@ -162,10 +168,15 @@ public class Torrent {
                     pathStrings.add(fromBenString(pathPiece));
                 }
 
-                this.files.add(new TorrentFile(i, length, String.join(File.separator, pathStrings)));
-                i++;
+                this.files.add(new TorrentFile(index, length, String.join(File.separator, pathStrings)));
+                index++;
             }
         }
+
+        // TRACKER
+        var tracker = new Tracker(getFiles());
+        tracker.sendTrackerRequest(getAnnounce());
+        this.tracker = tracker;
     }
 
     // FIXME: See .torrent structure in README.md.
@@ -173,11 +184,20 @@ public class Torrent {
         this(new File(filename));
     }
 
+    public Torrent lock() {
+        this.mutex.lock();
+        return this;
+    }
+
+    public void unlock() {
+        this.mutex.unlock();
+    }
+
     public Tracker getTracker() {
         return this.tracker;
     }
 
-    public String getAnnounce() {
+    public URL getAnnounce() {
         return this.announce;
     }
 
@@ -203,13 +223,5 @@ public class Torrent {
 
     public long getPieceLength() {
         return this.pieceLength;
-    }
-
-    private static BencodeString toBenString(String s) throws UnsupportedEncodingException {
-        return new BencodeString(s, ENCODING);
-    }
-
-    private static String fromBenString(BencodeResult bencodeResult) throws BencodeException {
-        return ((BencodeString) bencodeResult.getValue()).getString();
     }
 }
