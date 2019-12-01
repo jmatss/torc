@@ -74,27 +74,19 @@ public class Bencode {
      * @throws UnsupportedEncodingException if utf-8 isn't supported.
      */
     public BencodeResult getNext() throws EOFException, BencodeException, UnsupportedEncodingException {
-        BencodeResult<?> result;
         BencodeType type = getNextType();
-
         switch (type) {
             case NUMBER:
-                result = new BencodeResult<>(type, getNumber());
-                break;
+                return new BencodeResult<>(type, getNumber());
             case LIST:
-                result = new BencodeResult<>(type, getList());
-                break;
+                return new BencodeResult<>(type, getList());
             case DICTIONARY:
-                result = new BencodeResult<>(type, getDictionary());
-                break;
+                return new BencodeResult<>(type, getDictionary());
             case STRING:
-                result = new BencodeResult<>(type, getString());
-                break;
+                return new BencodeResult<>(type, getString());
             default:
                 throw new BencodeException("Parsed incorrect BencodeType.");
         }
-
-        return result;
     }
 
     public BencodeString getString() throws BencodeException, UnsupportedEncodingException {
