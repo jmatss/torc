@@ -63,15 +63,27 @@ Multi-file torrent:
     
 Tracker Request (GET request) (https://wiki.theory.org/index.php/BitTorrentSpecification#Tracker_Request_Parameters):
 
-    info_hash: SHA1 hash of 
+    info_hash: SHA1 hash of the bencoded "info" dictionary.
+    peer_id: ..
+    port: ..
+    uploaded: (bytes).
+    downloaded: (bytes).
+    left: bytes left to download before getting 100% of the torrent file(s).
+    compact: 1 for "binary model response" and 0 for "dictionary model response" (see below).
+    no_peer_id: ..
+    event: "started", "stopped" or "completed".
+    ip: address if thus host (OPTIONAL)
+    numwant: number of peers this client wants (OPTIONAL)
+    key: .. (OPTIONAL)
+    trackerid: .. (OPTIONAL)
     
 Tracker Response dictionary model (https://wiki.theory.org/index.php/BitTorrentSpecification#Tracker_Response):
 
     d
     	14:failure reason <num>:<string>
-    	15:warning message <num>:<string>
+    	15:warning message <num>:<string> (OPTIONAL)
     	8:interval i<num>e
-    	12:min interval i<num>e
+    	12:min interval i<num>e (OPTIONAL)
     	10:tracker id <num>:<string>
     	8:complete i<num>e		(seeders)
     	10:incomplete i<num>e	(leechers)
@@ -88,9 +100,9 @@ Tracker Response binary model:
 
     d
     	14:failure reason <num>:<string>
-    	15:warning message <num>:<string>
+    	15:warning message <num>:<string> (OPTIONAL)
     	8:interval i<num>e
-    	12:min interval i<num>e
+    	12:min interval i<num>e (OPTIONAL)
     	10:tracker id <num>:<string>
     	8:complete i<num>e		(seeders)
     	10:incomplete i<num>e	(leechers)
