@@ -106,5 +106,5 @@ Tracker Response binary model:
     	10:tracker id <num>:<string>
     	8:complete i<num>e		(seeders)
     	10:incomplete i<num>e	(leechers)
-        5:peers <num>:<string> ... 	// <string> = 6 bytes (IPv4(4) + PORT(2))
+    	5:peers <num>:<string> ... 	// <string> = 6 bytes (IPv4(4) + PORT(2))
     e

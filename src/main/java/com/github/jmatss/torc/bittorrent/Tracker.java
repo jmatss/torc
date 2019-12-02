@@ -22,7 +22,7 @@ public class Tracker {
 
     private final Lock mutex;
 
-    // TODO: private final byte[] infoHash;
+    // TODO: private final InfoHash infoHash;
     private String trackerId;
     private final byte[] peerId;
 
