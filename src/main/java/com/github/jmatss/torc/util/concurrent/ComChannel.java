@@ -1,4 +1,7 @@
-package com.github.jmatss.torc.util.com;
+package com.github.jmatss.torc.util.concurrent;
+
+import com.github.jmatss.torc.bittorrent.InfoHash;
+import com.github.jmatss.torc.util.LockableHashMap;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -9,16 +12,25 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class Com {
+public class ComChannel {
     public static final int QUEUE_SIZE = 10;
-    private static final Logger LOGGER = Logger.getLogger(Com.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(ComChannel.class.getName());
 
-    private final BlockingQueue<Message> parent;
-    private final LockableHashMap<String, BlockingQueue<Message>> children;
+    // Contains messages sent from a child to the parent.
+    // Might also contains arbitrary messages if the ComChannel is constructed with a custom parent.
+    private final BlockingQueue<ComMessage> parent;
 
-    Com() {
-        this.parent = new ArrayBlockingQueue<>(QUEUE_SIZE);
+    // Contains a map of all active children with their corresponding "channels".
+    // The key is the infoHash of the specific "child-torrent".
+    private final LockableHashMap<InfoHash, BlockingQueue<ComMessage>> children;
+
+    public ComChannel(BlockingQueue<ComMessage> parent) {
+        this.parent = parent;
         this.children = new LockableHashMap<>();
+    }
+
+    public ComChannel() {
+        this(new ArrayBlockingQueue<>(QUEUE_SIZE));
     }
 
     /**
@@ -27,7 +39,7 @@ public class Com {
      * @param message the message to be sent to the parent.
      * @return a boolean indicating if it was able to send the message or not.
      */
-    public boolean sendParent(Message message) {
+    public boolean sendParent(ComMessage message) {
         return send(this.parent, message);
     }
 
@@ -40,7 +52,7 @@ public class Com {
      * @return a boolean indicating if it was able to send the message or not.
      * @throws TimeoutException if a timeout happens.
      */
-    public boolean sendParent(Message message, int timeout) throws TimeoutException {
+    public boolean sendParent(ComMessage message, int timeout) throws TimeoutException {
         return send(this.parent, message, timeout);
     }
 
@@ -52,7 +64,7 @@ public class Com {
      * @return a boolean indicating if it was able to send the message or not.
      * @throws IllegalArgumentException if the specified child doesn't exist.
      */
-    public boolean sendChild(Message message, String childId) throws IllegalArgumentException {
+    public boolean sendChild(ComMessage message, InfoHash childId) throws IllegalArgumentException {
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
                 throw new IllegalArgumentException("The child with id \"" + childId + "\" could not be found.");
@@ -71,7 +83,7 @@ public class Com {
      * @throws IllegalArgumentException if the specified child doesn't exist.
      * @throws TimeoutException         if a timeout happens.
      */
-    public boolean sendChild(Message message, String childId, int timeout)
+    public boolean sendChild(ComMessage message, InfoHash childId, int timeout)
     throws IllegalArgumentException, TimeoutException {
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
@@ -82,7 +94,7 @@ public class Com {
 
     // Receives a message without using a timeout.
     // This function works as an intermediate to remove the checked TimeoutException.
-    private boolean send(BlockingQueue<Message> queue, Message message) {
+    private boolean send(BlockingQueue<ComMessage> queue, ComMessage message) {
         try {
             return send(queue, message, 0);
         } catch (TimeoutException e) {
@@ -94,7 +106,7 @@ public class Com {
         }
     }
 
-    private boolean send(BlockingQueue<Message> queue, Message message, int timeout)
+    private boolean send(BlockingQueue<ComMessage> queue, ComMessage message, int timeout)
     throws IllegalArgumentException, TimeoutException {
         try {
             if (timeout <= 0)
@@ -113,7 +125,7 @@ public class Com {
      *
      * @return a Optional containing a Message or null if it was unable to receive a message.
      */
-    public Message recvParent() {
+    public ComMessage recvParent() {
         return recv(this.parent);
     }
 
@@ -125,7 +137,7 @@ public class Com {
      * @return an Optional containing a Message.
      * @throws TimeoutException if a timeout happens.
      */
-    public Message recvParent(int timeout) throws TimeoutException {
+    public ComMessage recvParent(int timeout) throws TimeoutException {
         return recv(this.parent, timeout);
     }
 
@@ -136,7 +148,7 @@ public class Com {
      * @return a Optional containing a Message or null if it was unable to receive a message.
      * @throws IllegalArgumentException if the specified child doesn't exist.
      */
-    public Message recvChild(String childId) throws IllegalArgumentException {
+    public ComMessage recvChild(InfoHash childId) throws IllegalArgumentException {
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
                 throw new IllegalArgumentException("The child with id \"" + childId + "\" could not be found.");
@@ -154,7 +166,7 @@ public class Com {
      * @throws IllegalArgumentException if the specified child doesn't exist.
      * @throws TimeoutException         if a timeout happens.
      */
-    public Message recvChild(String childId, int timeout)
+    public ComMessage recvChild(InfoHash childId, int timeout)
     throws IllegalArgumentException, TimeoutException {
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
@@ -165,7 +177,7 @@ public class Com {
 
     // Receives a message without using a timeout.
     // This function works as an intermediate to remove the checked TimeoutException.
-    private Message recv(BlockingQueue<Message> queue) {
+    private ComMessage recv(BlockingQueue<ComMessage> queue) {
         try {
             return recv(queue, 0);
         } catch (TimeoutException e) {
@@ -178,8 +190,8 @@ public class Com {
     }
 
     // Doesn't use the timeout on the receive if the "timeout" argument is less than or equal to zero.
-    private Message recv(BlockingQueue<Message> queue, int timeout) throws TimeoutException {
-        Message message;
+    private ComMessage recv(BlockingQueue<ComMessage> queue, int timeout) throws TimeoutException {
+        ComMessage message;
         try {
             if (timeout <= 0) {
                 message = queue.take();
@@ -200,7 +212,7 @@ public class Com {
      * @param childId the id of the child that the parent should send to
      * @return this
      */
-    public Com addChild(String childId) {
+    public ComChannel addChild(InfoHash childId) {
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (this.children.containsKey(childId))
                 return this; // TODO: return exception or just let it be ok?
@@ -216,7 +228,7 @@ public class Com {
      * @param childId the id of the child that is to be removed.
      * @return this
      */
-    public Com removeChild(String childId) {
+    public ComChannel removeChild(InfoHash childId) {
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
                 return this; // TODO: return exception or just let it be ok?
