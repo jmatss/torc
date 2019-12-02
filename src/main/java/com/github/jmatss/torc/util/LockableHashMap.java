@@ -1,4 +1,4 @@
-package com.github.jmatss.torc.util.com;
+package com.github.jmatss.torc.util;
 
 import java.util.*;
 import java.util.concurrent.locks.Lock;
