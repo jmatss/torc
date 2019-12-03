@@ -1,4 +1,4 @@
-package com.github.jmatss.torc.util.concurrent;
+package com.github.jmatss.torc.util.com;
 
 import com.github.jmatss.torc.bittorrent.InfoHash;
 
@@ -87,5 +87,9 @@ public class ComMessage {
 
     public Map<String, Object> getProperties() {
         return this.properties;
+    }
+
+    public Object getProperty(String key) {
+        return this.properties.get(key);
     }
 }
