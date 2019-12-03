@@ -1,10 +1,11 @@
-package com.github.jmatss.torc.util.concurrent;
+package com.github.jmatss.torc.util.com;
 
 import com.github.jmatss.torc.bittorrent.InfoHash;
 import com.github.jmatss.torc.util.LockableHashMap;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -59,12 +60,12 @@ public class ComChannel {
     /**
      * Sends a message to the specified child.
      *
-     * @param message the message to be sent to the child.
-     * @param childId the id of the child this message is directed to.
+     * @param message the message to be sent to the child. Contains the child id.
      * @return a boolean indicating if it was able to send the message or not.
      * @throws IllegalArgumentException if the specified child doesn't exist.
      */
-    public boolean sendChild(ComMessage message, InfoHash childId) throws IllegalArgumentException {
+    public boolean sendChild(ComMessage message) throws IllegalArgumentException {
+        var childId = getInfoHash(message);
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
                 throw new IllegalArgumentException("The child with id \"" + childId + "\" could not be found.");
@@ -75,20 +76,47 @@ public class ComChannel {
     /**
      * Sends a message to the specified child with the specified timeout.
      *
-     * @param message the message to be sent to the child.
-     * @param childId the id of the child this message is directed to.
+     * @param message the message to be sent to the child. Contains the child id.
      * @param timeout in second after which the function gives up sending data. A value less than or
      *                equal to zero indicates no timeout.
      * @return a boolean indicating if it was able to send the message or not.
      * @throws IllegalArgumentException if the specified child doesn't exist.
      * @throws TimeoutException         if a timeout happens.
      */
-    public boolean sendChild(ComMessage message, InfoHash childId, int timeout)
+    public boolean sendChild(ComMessage message, int timeout)
     throws IllegalArgumentException, TimeoutException {
+        var childId = getInfoHash(message);
         try (LockableHashMap<?, ?> ignored = this.children.lock()) {
             if (!this.children.containsKey(childId))
                 throw new IllegalArgumentException("The child with id \"" + childId + "\" could not be found.");
             return send(this.children.get(childId), message, timeout);
+        }
+    }
+
+    /**
+     * Sends a message to all children.
+     *
+     * @param message the message to be sent to the children.
+     */
+    public void sendChildren(ComMessage message) {
+        try (LockableHashMap<?, ?> ignored = this.children.lock()) {
+            for (var child : this.children.entrySet())
+                send(child.getValue(), message);
+        }
+    }
+
+    /**
+     * Sends a message to all children with the specified timeout.
+     *
+     * @param message the message to be sent to the children.
+     * @param timeout in second after which the function gives up sending data. A value less than or equal to zero
+     *                indicates no timeout.
+     * @throws TimeoutException if a timeout happens.
+     */
+    public void sendChildren(ComMessage message, int timeout) throws TimeoutException {
+        try (LockableHashMap<?, ?> ignored = this.children.lock()) {
+            for (var child : this.children.entrySet())
+                send(child.getValue(), message, timeout);
         }
     }
 
@@ -235,6 +263,17 @@ public class ComChannel {
 
             this.children.remove(childId);
             return this;
+        }
+    }
+
+    private InfoHash getInfoHash(ComMessage message) {
+        var properties = message.getProperties();
+        var infoHash = properties.get("infoHash");
+
+        if (infoHash instanceof InfoHash) {
+            return (InfoHash) infoHash;
+        } else {
+            throw new NoSuchElementException("Couldn't find the infoHash.");
         }
     }
 }
