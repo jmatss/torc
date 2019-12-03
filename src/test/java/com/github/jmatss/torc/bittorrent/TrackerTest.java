@@ -154,8 +154,8 @@ public class TrackerTest {
         List<TorrentFile> files = new ArrayList<>(0);
 
         byte[][] trackerResponse = new byte[][]{
-                "HTTP/1.1 200 \r\n".getBytes(),
-                "Content-Type: text/plain \r\n".getBytes(),
+                "HTTP/1.1 200\r\n".getBytes(),
+                "Content-Type: text/plain\r\n".getBytes(),
                 "Connection: close\r\n".getBytes(),
                 "\r\n".getBytes(),
                 Files.readAllBytes(new File(path).toPath())
