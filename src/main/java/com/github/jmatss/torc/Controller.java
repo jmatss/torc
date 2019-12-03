@@ -2,8 +2,8 @@ package com.github.jmatss.torc;
 
 import com.github.jmatss.torc.bittorrent.InfoHash;
 import com.github.jmatss.torc.bittorrent.Torrent;
-import com.github.jmatss.torc.util.concurrent.ComChannel;
-import com.github.jmatss.torc.util.concurrent.ComMessage;
+import com.github.jmatss.torc.util.com.ComChannel;
+import com.github.jmatss.torc.util.com.ComMessage;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -21,14 +21,10 @@ public class Controller {
     private final byte[] peerId;
 
     // This ComChannel is used to send messages between this controller and the torrent handlers asynchronously.
-    private final ComChannel torrentHandlersChannel;
-
+    // It will also receive messages from the View.
+    private final ComChannel comChannel;
 
     private final BlockingQueue<ComMessage> sendToView;
-
-    // This channel will contain every message that is sent to this controller.
-    // That includes message from both the View and the torrent handlers.
-    private final BlockingQueue<ComMessage> receiver;
 
     // List of all "active" torrents in the client.
     private final Map<InfoHash, Torrent> torrents;
@@ -40,15 +36,15 @@ public class Controller {
         this.rootPath = DOWNLOAD_ROOT_PATH;
         this.peerId = newPeerId();
 
-        this.torrentHandlersChannel = new ComChannel();
+        this.comChannel = new ComChannel(receiver);
         this.sendToView = sendToView;
-        this.receiver = receiver;
 
         this.torrents = getTorrentsFromDisk();
         this.executor.submit(this::run);
     }
 
     public List<Runnable> shutdown() {
+        this.comChannel.sendChildren(ComMessage.shutdown());
         // TODO: maybe return exception instead of empty list.
         if (this.executor.isShutdown())
             return Collections.emptyList();
