@@ -107,7 +107,7 @@ public class Torrent {
         BencodeResult pieces = info.get(toBenString("pieces"));
         if (pieces == null || pieces.getType() != BencodeType.STRING)
             throw new BencodeException("Incorrect \"pieces\" field.");
-        BencodeString piecesBenString = (BencodeString) pieces.getValue();
+        var piecesBenString = (BencodeString) pieces.getValue();
         if (piecesBenString.getBytes().length % SHA1_HASH_LENGTH != 0)
             throw new BencodeException("Field \"pieces\" isn't divisible by sha1 length.");
 
@@ -140,7 +140,7 @@ public class Torrent {
             if (filesResult == null || filesResult.getType() != BencodeType.LIST)
                 throw new BencodeException("Incorrect \"files\" field.");
             @SuppressWarnings("unchecked")
-            List<BencodeResult> files = (List<BencodeResult>) filesResult.getValue();
+            var files = (List<BencodeResult>) filesResult.getValue();
 
             this.files = new ArrayList<>(files.size());
 
@@ -150,7 +150,7 @@ public class Torrent {
                 if (fileResult == null || fileResult.getType() != BencodeType.DICTIONARY)
                     throw new BencodeException("Incorrect file inside \"files\" field.");
                 @SuppressWarnings("unchecked")
-                Map<BencodeString, BencodeResult> file = (Map<BencodeString, BencodeResult>) fileResult.getValue();
+                var file = (Map<BencodeString, BencodeResult>) fileResult.getValue();
 
                 // LENGTH
                 BencodeResult lengthResult = file.get(toBenString("length"));
@@ -163,7 +163,7 @@ public class Torrent {
                 if (pathResult == null || pathResult.getType() != BencodeType.LIST)
                     throw new BencodeException("Incorrect path of file inside \"files\" field.");
                 @SuppressWarnings("unchecked")
-                List<BencodeResult> path = (List<BencodeResult>) pathResult.getValue();
+                var path = (List<BencodeResult>) pathResult.getValue();
                 List<String> pathStrings = new ArrayList<>(path.size());
 
                 for (BencodeResult pathPiece : path) {
