@@ -1,15 +1,10 @@
 package com.github.jmatss.torc.bittorrent;
 
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 public class Bitfield {
-    private final Lock mutex;
     private final byte[] bitfield;
     private final int amountOfPieces;
 
     public Bitfield(int amountOfPieces) {
-        this.mutex = new ReentrantLock();
         this.bitfield = new byte[((amountOfPieces - 1) / 8) + 1];
         this.amountOfPieces = amountOfPieces;
     }
