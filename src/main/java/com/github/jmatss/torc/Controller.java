@@ -4,14 +4,18 @@ import com.github.jmatss.torc.bittorrent.InfoHash;
 import com.github.jmatss.torc.bittorrent.Torrent;
 import com.github.jmatss.torc.util.com.ComChannel;
 import com.github.jmatss.torc.util.com.ComMessage;
+import com.github.jmatss.torc.util.com.ComPropertyType;
 
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Controller {
+    public static final Logger LOGGER = Logger.getLogger(Controller.class.getName());
     // TODO: remove this temp download root path
     private static final String DOWNLOAD_ROOT_PATH = "";
 
@@ -52,8 +56,52 @@ public class Controller {
     }
 
     public void run() {
+        ComMessage message;
+        InfoHash infoHash;
+        String filename;
         while (true) {
-
+            try {
+                message = this.comChannel.recvParent();
+                switch (message.getType()) {
+                    case ADD:
+                        infoHash = (InfoHash) message.getProperty(ComPropertyType.INFO_HASH.toString());
+                        filename = (String) message.getProperty(ComPropertyType.FILENAME.toString());
+                        var torrent = new Torrent(filename, getPeerId());
+                        this.torrents.put(infoHash, torrent);
+                        this.executor.submit(() -> TorrentHandler.run(torrent));
+                        break;
+                    case REMOVE:
+                        infoHash = (InfoHash) message.getProperty(ComPropertyType.INFO_HASH.toString());
+                        this.comChannel.sendChild(ComMessage.remove(infoHash));
+                        break;
+                    case START:
+                        infoHash = (InfoHash) message.getProperty(ComPropertyType.INFO_HASH.toString());
+                        this.comChannel.sendChild(ComMessage.start(infoHash));
+                        break;
+                    case STOP:
+                        infoHash = (InfoHash) message.getProperty(ComPropertyType.INFO_HASH.toString());
+                        this.comChannel.sendChild(ComMessage.stop(infoHash));
+                        break;
+                    case SHUTDOWN:
+                        this.comChannel.sendChildren(ComMessage.shutdown());
+                        return;
+                    case ERROR:
+                        this.sendToView.add(message);
+                        break;
+                    case FATAL_ERROR:
+                        infoHash = (InfoHash) message.getProperty(ComPropertyType.INFO_HASH.toString());
+                        this.torrents.remove(infoHash);
+                        this.sendToView.add(message);
+                        break;
+                    case MOVE:
+                        infoHash = (InfoHash) message.getProperty(ComPropertyType.INFO_HASH.toString());
+                        filename = (String) message.getProperty(ComPropertyType.FILENAME.toString());
+                        this.comChannel.sendChild(ComMessage.rename(infoHash, filename));
+                        break;
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, e.getMessage());
+            }
         }
     }
 
