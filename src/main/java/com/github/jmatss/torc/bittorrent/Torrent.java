@@ -7,6 +7,7 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,8 @@ public class Torrent {
     // Contains the URL of the tracker.
     private final URL announce;
 
+    private final InfoHash infoHash;
+
     // Contains the bitfield of the pieces that this client have downloaded
     // and can be seeded to other clients.
     private Bitfield bitfieldHave;
@@ -63,18 +66,22 @@ public class Torrent {
     // All pieces have the same length expected the last one that will be less that pieceLength.
     private final long pieceLength;
 
-    public Torrent(File f, byte[] peerId) throws BencodeException, IOException {
+    // Indicate of downloading/uploading of this torrent is paused.
+    private boolean paused;
+
+    public Torrent(File f, byte[] peerId) throws BencodeException, IOException, NoSuchAlgorithmException {
         if (!f.exists())
             throw new IOException("File \"" + f.getAbsolutePath() + "\" doesn't exist.");
         else if (!f.isFile())
             throw new IOException("File \"" + f.getAbsolutePath() + "\" isn't a valid file.");
 
-        Bencode bencode = new Bencode(f);
+        var bencode = new BencodeDecode(f);
         Map<BencodeString, BencodeResult> torrentDictionary = bencode.getDictionary();
 
         this.mutex = new ReentrantLock();
         this.peerId = peerId;
         this.tracker = null;
+        this.paused = false;
 
         // ANNOUNCE
         BencodeResult announce = torrentDictionary.get(toBenString("announce"));
@@ -89,7 +96,10 @@ public class Torrent {
         @SuppressWarnings("unchecked")
         var info = (Map<BencodeString, BencodeResult>) infoResult.getValue();
 
-        // TODO: Get infoHash.
+        // INFO_HASH
+        var bencodeEncode = new BencodeEncode(infoResult);
+        var content = bencodeEncode.encode();
+        this.infoHash = new InfoHash(content);
 
         // NAME
         BencodeResult name = info.get(toBenString("name"));
@@ -178,8 +188,7 @@ public class Torrent {
         }
     }
 
-    // FIXME: See .torrent structure in README.md.
-    public Torrent(String filename, byte[] peerId) throws IOException, BencodeException {
+    public Torrent(String filename, byte[] peerId) throws IOException, BencodeException, NoSuchAlgorithmException {
         this(new File(filename), peerId);
     }
 
@@ -198,7 +207,7 @@ public class Torrent {
 
     public void sendTrackerRequest() throws IOException, BencodeException {
         if (this.tracker == null)
-            this.tracker = new Tracker(this.files, this.peerId);
+            this.tracker = new Tracker(this.files, this.infoHash, this.peerId);
         this.tracker.sendRequest(this.announce);
     }
 
@@ -216,6 +225,10 @@ public class Torrent {
 
     public URL getAnnounce() {
         return this.announce;
+    }
+
+    public InfoHash getInfoHash() {
+        return this.infoHash;
     }
 
     public Bitfield getBitfieldHave() {
@@ -240,5 +253,14 @@ public class Torrent {
 
     public long getPieceLength() {
         return this.pieceLength;
+    }
+
+    public boolean isPaused() {
+        return this.paused;
+    }
+
+    public Torrent setPaused(boolean value) {
+        this.paused = value;
+        return this;
     }
 }

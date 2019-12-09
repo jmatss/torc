@@ -22,7 +22,7 @@ public class Tracker {
 
     private final Lock mutex;
 
-    // TODO: private final InfoHash infoHash;
+    private final InfoHash infoHash;
     private String trackerId;
     private final byte[] peerId;
 
@@ -40,9 +40,10 @@ public class Tracker {
     // The key used in the map is the IP address of the peer in String format.
     private final Map<String, Peer> peers;
 
-    public Tracker(List<TorrentFile> files, byte[] peerId) {
+    public Tracker(List<TorrentFile> files, InfoHash infoHash, byte[] peerId) {
         this.mutex = new ReentrantLock();
 
+        this.infoHash = infoHash;
         this.peerId = peerId;
 
         this.uploaded = 0;
@@ -94,8 +95,7 @@ public class Tracker {
         HttpURLConnection conn = (HttpURLConnection) announce.openConnection();
         try {
             conn.setRequestMethod("GET");
-            // TODO: infoHash
-            conn.setRequestProperty("info_hash", "TEMPORARY VALUE");
+            conn.setRequestProperty("info_hash", URLEncode(this.infoHash.getBytes()));
             conn.setRequestProperty("peer_id", URLEncode(this.peerId));
             conn.setRequestProperty("port", URLEncode(String.valueOf(Torrent.PORT)));
             conn.setRequestProperty("uploaded", URLEncode(this.uploaded));
@@ -134,7 +134,7 @@ public class Tracker {
 
     public void updateFromResponse(byte[] content)
     throws IOException, BencodeException {
-        Bencode bencode = new Bencode(content);
+        var bencode = new BencodeDecode(content);
         Map<BencodeString, BencodeResult> responseDictionary = bencode.getDictionary();
 
         // FAILURE REASON
