@@ -81,6 +81,10 @@ public class ComMessage {
         return new ComMessage(ComMessageType.MOVE, infoHash, filename);
     }
 
+    public static ComMessage list() {
+        return new ComMessage(ComMessageType.LIST);
+    }
+
     public ComMessageType getType() {
         return this.type;
     }
