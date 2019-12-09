@@ -1,11 +1,23 @@
 package com.github.jmatss.torc.bittorrent;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class InfoHash {
+    public static final String HASH_ALGORITHM = "SHA-1";
     private final byte[] infoHash;
 
-    public InfoHash(byte[] infoHash) {
+    public InfoHash(InfoHash infoHash) {
+        this.infoHash = infoHash.getBytes();
+    }
+
+    public InfoHash(byte[] infoDictionary) throws NoSuchAlgorithmException {
+        var md = MessageDigest.getInstance(HASH_ALGORITHM);
+        this.infoHash = md.digest(infoDictionary);
+    }
+
+    public InfoHash(byte[] infoHash, boolean rawInfoHash) {
         this.infoHash = infoHash;
     }
 
