@@ -3,6 +3,7 @@ package com.github.jmatss.torc.util.com;
 import com.github.jmatss.torc.bittorrent.InfoHash;
 import org.junit.jupiter.api.Test;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,11 +33,9 @@ public class ComChannelTest {
     }
 
     @Test
-    public void testSendToChildAndReceiveOnThatChild() {
-        var childInfoHashBytes = new byte[]{
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
-        };
-        var childInfoHash = new InfoHash(childInfoHashBytes);
+    public void testSendToChildAndReceiveOnThatChild() throws NoSuchAlgorithmException {
+        var childInfoHashBytes = "01234567890123456789".getBytes();
+        var childInfoHash = new InfoHash(childInfoHashBytes, true);
         var comChannel = new ComChannel();
         comChannel.addChild(childInfoHash);
 
@@ -64,14 +63,14 @@ public class ComChannelTest {
     }
 
     @Test
-    public void testSendToAllChildrenAndReceive() {
+    public void testSendToAllChildrenAndReceive() throws NoSuchAlgorithmException {
         var childrenInfoHashBytes = new byte[][]{
-                {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
-                {19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}
+                "01234567890123456789".getBytes(),
+                "98765432109876543210".getBytes()
         };
         InfoHash[] childrenInfoHash = {
-                new InfoHash(childrenInfoHashBytes[0]),
-                new InfoHash(childrenInfoHashBytes[1])
+                new InfoHash(childrenInfoHashBytes[0], true),
+                new InfoHash(childrenInfoHashBytes[1], true)
         };
         var comChannel = new ComChannel();
         comChannel.addChild(childrenInfoHash[0]);
@@ -88,7 +87,7 @@ public class ComChannelTest {
 
             // ACTUAL
             ComMessage[] actualComMessages = Executors.newSingleThreadExecutor()
-                    .submit(() ->  {
+                    .submit(() -> {
                         ComMessage[] comMessages = new ComMessage[2];
                         comMessages[0] = comChannel.recvChild(childrenInfoHash[0]);
                         comMessages[1] = comChannel.recvChild(childrenInfoHash[1]);

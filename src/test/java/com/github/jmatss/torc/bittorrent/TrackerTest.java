@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
 import java.nio.file.Files;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,13 +25,14 @@ public class TrackerTest {
     }
 
     @Test
-    public void testCreateNewTrackerObjectCorrectly() {
+    public void testCreateNewTrackerObjectCorrectly() throws NoSuchAlgorithmException {
         String filename = "test.data";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
         List<TorrentFile> files = new ArrayList<>(1);
         files.add(new TorrentFile(0, 4, path));
 
-        var tracker = new Tracker(files, peerId);
+        var infoHash = new InfoHash("".getBytes());
+        var tracker = new Tracker(files, infoHash, peerId);
 
         // EXPECTED
         byte[] expectedPeerId = peerId;
@@ -64,7 +66,8 @@ public class TrackerTest {
     }
 
     @Test
-    public void testSendTrackerRequestCorrectly() throws IOException, BencodeException, InterruptedException {
+    public void testSendTrackerRequestCorrectly()
+    throws IOException, BencodeException, InterruptedException, NoSuchAlgorithmException {
         int listenPort = 7301;
         String filename = "test.data";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
@@ -73,7 +76,8 @@ public class TrackerTest {
 
         // The serverThread will receive a GET request from the tracker object.
         // It will gather the headers in the headers map so that they can be checked.
-        var tracker = new Tracker(files, peerId);
+        var infoHash = new InfoHash("".getBytes());
+        var tracker = new Tracker(files, infoHash, peerId);
         var headers = new HashMap<String, String>();
         Thread serverThread = new Thread(
                 () -> {
@@ -147,7 +151,7 @@ public class TrackerTest {
 
     @Test
     public void testReceivesTrackerBinaryModelResponseCorrectly()
-    throws IOException, BencodeException, InterruptedException {
+    throws IOException, BencodeException, InterruptedException, NoSuchAlgorithmException {
         int listenPort = 7302;
         String filename = "trackerResponseBinary.data";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
@@ -163,7 +167,8 @@ public class TrackerTest {
 
         // The serverThread will ignore everyhting received in the GET request.
         // This test will only test if the Tracker object receives the response correctly.
-        var tracker = new Tracker(files, peerId);
+        var infoHash = new InfoHash("".getBytes());
+        var tracker = new Tracker(files, infoHash, peerId);
         Thread serverThread = new Thread(
                 () -> {
                     try (

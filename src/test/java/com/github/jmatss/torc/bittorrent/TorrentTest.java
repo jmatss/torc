@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -25,7 +26,8 @@ public class TorrentTest {
     }
 
     @Test
-    public void testCreatingTorrentFromSingleFileTorrentCorrectly() throws IOException, BencodeException {
+    public void testCreatingTorrentFromSingleFileTorrentCorrectly()
+    throws IOException, BencodeException, NoSuchAlgorithmException {
         String filename = "test1.torrent";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
         Torrent torrent = new Torrent(path, peerId);
@@ -37,6 +39,7 @@ public class TorrentTest {
         long expectedLength = 4;
         long expectedIndex = 0;
         Path expectedPath = expectedName;
+        var expectedInfoHash = new InfoHash(toDigest("8744e7c94baaec2757f8cc52a98e966a9ad4cf78"), true);
         byte[] expectedPiece = toDigest("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3");
 
         // ACTUAL
@@ -46,6 +49,7 @@ public class TorrentTest {
         long actualLength = torrent.getFiles().get(0).getLength();
         long actualIndex = torrent.getFiles().get(0).getIndex();
         Path actualPath = torrent.getFiles().get(0).getPath();
+        var actualInfoHash = torrent.getInfoHash();
         byte[] actualPiece = torrent.getPieces()[0];
 
         // ASSERT
@@ -56,12 +60,13 @@ public class TorrentTest {
         assertEquals(expectedPieceLength, actualPieceLength);
         assertEquals(expectedLength, actualLength);
         assertEquals(expectedIndex, actualIndex);
+        assertArrayEquals(expectedInfoHash.getBytes(), actualInfoHash.getBytes());
         assertEquals(expectedPath, actualPath);
     }
 
     @Test
     public void testCreatingTorrentFromSingleFileTorrentWithTwoPiecesCorrectly()
-    throws IOException, BencodeException {
+    throws IOException, BencodeException, NoSuchAlgorithmException {
         String filename = "test2.torrent";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
         Torrent torrent = new Torrent(path, peerId);
@@ -73,6 +78,7 @@ public class TorrentTest {
         long expectedLength = 4;
         long expectedIndex = 0;
         Path expectedPath = expectedName;
+        var expectedInfoHash = new InfoHash(toDigest("fba9b668222968632d32c8abf571514b29b68b71"), true);
         byte[][] expectedPieces = {
                 toDigest("33e9505d12942e8259a3c96fb6f88ed325b95797"),
                 toDigest("9b02d9974c14e623c9ffbed7360beacbf0dcb95f")
@@ -85,6 +91,7 @@ public class TorrentTest {
         long actualLength = torrent.getFiles().get(0).getLength();
         long actualIndex = torrent.getFiles().get(0).getIndex();
         Path actualPath = torrent.getFiles().get(0).getPath();
+        var actualInfoHash = torrent.getInfoHash();
         byte[][] actualPieces = new byte[torrent.getPieces().length][];
         for (int i = 0; i < torrent.getPieces().length; i++)
             actualPieces[i] = torrent.getPieces()[i];
@@ -96,13 +103,15 @@ public class TorrentTest {
         assertEquals(expectedLength, actualLength);
         assertEquals(expectedIndex, actualIndex);
         assertEquals(expectedPath, actualPath);
+        assertArrayEquals(expectedInfoHash.getBytes(), actualInfoHash.getBytes());
         assertEquals(expectedPieces.length, actualPieces.length);
         for (int i = 0; i < expectedPieces.length; i++)
             assertArrayEquals(expectedPieces[i], actualPieces[i]);
     }
 
     @Test
-    public void testCreatingTorrentFromMultiFileTorrentCorrectly() throws IOException, BencodeException {
+    public void testCreatingTorrentFromMultiFileTorrentCorrectly()
+    throws IOException, BencodeException, NoSuchAlgorithmException {
         String filename = "test3.torrent";
         String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
         Torrent torrent = new Torrent(path, peerId);
@@ -113,6 +122,7 @@ public class TorrentTest {
         long expectedPieceLength = 7;
         int expectedAmountOfFiles = 2;
         byte[] expectedPiece = toDigest("8865096550cb3439aa1ae8ce209fd18a0be8d76f");
+        var expectedInfoHash = new InfoHash(toDigest("5f67b42614fd18d3bb6e61a091dc53144fc3eda8"), true);
         long[] expectedLengths = {
                 "test".getBytes(ENCODING).length,
                 "åäö".getBytes(ENCODING).length
@@ -128,6 +138,7 @@ public class TorrentTest {
         Path actualName = torrent.getName();
         long actualPieceLength = torrent.getPieceLength();
         byte[] actualPiece = torrent.getPieces()[0];
+        var actualInfoHash = torrent.getInfoHash();
         List<TorrentFile> actualTorrentFiles = torrent.getFiles();
 
         // ASSERT
@@ -136,6 +147,7 @@ public class TorrentTest {
         assertEquals(1, torrent.getPieces().length);
         assertArrayEquals(expectedPiece, actualPiece);
         assertEquals(expectedPieceLength, actualPieceLength);
+        assertArrayEquals(expectedInfoHash.getBytes(), actualInfoHash.getBytes());
         assertEquals(expectedAmountOfFiles, actualTorrentFiles.size());
         for (int i = 0; i < actualTorrentFiles.size(); i++) {
             var tf = actualTorrentFiles.get(i);
@@ -148,8 +160,9 @@ public class TorrentTest {
     private byte[] toDigest(String s) {
         byte[] res = new byte[s.length() / 2];
         for (int i = 0; i < s.length(); i += 2) {
-            res[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-                    + Character.digit(s.charAt(i + 1), 16));
+            int first = (Character.digit(s.charAt(i), 16) << 4);
+            int second = Character.digit(s.charAt(i + 1), 16);
+            res[i / 2] = (byte) (first + second);
         }
         return res;
     }
