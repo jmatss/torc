@@ -5,7 +5,7 @@ import java.util.Arrays;
 
 import static com.github.jmatss.torc.TMP_CONST.ENCODING;
 
-public class BencodeString {
+public class BencodeString implements Comparable<BencodeString> {
     private final byte[] bytes;
     private final String string;
 
@@ -20,6 +20,11 @@ public class BencodeString {
     }
 
     @Override
+    public int compareTo(BencodeString other) {
+        return this.getString().compareTo(other.getString());
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -29,11 +34,6 @@ public class BencodeString {
         }
 
         return false;
-    }
-
-    @Override
-    public int hashCode() {
-        return 31 * this.string.hashCode() + Arrays.hashCode(this.bytes);
     }
 
     public static BencodeString toBenString(String s) throws UnsupportedEncodingException {
