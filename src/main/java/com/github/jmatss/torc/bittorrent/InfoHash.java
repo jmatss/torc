@@ -39,4 +39,14 @@ public class InfoHash {
     public int hashCode() {
         return Arrays.hashCode(this.infoHash);
     }
+
+    @Override
+    public String toString() {
+        var sb = new StringBuilder(this.infoHash.length * 2);
+        for (byte b : this.infoHash) {
+            sb.append(Character.forDigit((b >> 0xf) & 0xf, 16));
+            sb.append(Character.forDigit(b & 0xf, 16));
+        }
+        return sb.toString();
+    }
 }

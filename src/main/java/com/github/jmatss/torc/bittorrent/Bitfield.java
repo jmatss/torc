@@ -1,5 +1,7 @@
 package com.github.jmatss.torc.bittorrent;
 
+import java.util.Arrays;
+
 public class Bitfield {
     private final byte[] bitfield;
     private final int amountOfPieces;
@@ -58,5 +60,10 @@ public class Bitfield {
             throw new IndexOutOfBoundsException("index >= amountOfPieces (" + index + " >= " + amountOfPieces + ")");
         else if (index < 0)
             throw new IndexOutOfBoundsException("index < 0 (" + index + " < 0)");
+    }
+
+    @Override
+    public String toString() {
+        return Arrays.toString(this.bitfield);
     }
 }
