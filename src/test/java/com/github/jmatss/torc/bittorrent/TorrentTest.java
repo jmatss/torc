@@ -5,6 +5,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,9 +29,9 @@ public class TorrentTest {
 
     @Test
     public void testCreatingTorrentFromSingleFileTorrentCorrectly()
-    throws IOException, BencodeException, NoSuchAlgorithmException {
+            throws IOException, BencodeException, NoSuchAlgorithmException {
         String filename = "test1.torrent";
-        String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
+        String path = getTestDataPath(filename);
         Torrent torrent = new Torrent(path, peerId);
 
         // EXPECTED
@@ -66,9 +68,9 @@ public class TorrentTest {
 
     @Test
     public void testCreatingTorrentFromSingleFileTorrentWithTwoPiecesCorrectly()
-    throws IOException, BencodeException, NoSuchAlgorithmException {
+            throws IOException, BencodeException, NoSuchAlgorithmException {
         String filename = "test2.torrent";
-        String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
+        String path = getTestDataPath(filename);
         Torrent torrent = new Torrent(path, peerId);
 
         // EXPECTED
@@ -111,9 +113,9 @@ public class TorrentTest {
 
     @Test
     public void testCreatingTorrentFromMultiFileTorrentCorrectly()
-    throws IOException, BencodeException, NoSuchAlgorithmException {
+            throws IOException, BencodeException, NoSuchAlgorithmException {
         String filename = "test3.torrent";
-        String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
+        String path = getTestDataPath(filename);
         Torrent torrent = new Torrent(path, peerId);
 
         // EXPECTED
@@ -165,5 +167,15 @@ public class TorrentTest {
             res[i / 2] = (byte) (first + second);
         }
         return res;
+    }
+
+    private String getTestDataPath(String filename) {
+        try {
+            String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
+            var urlDecodedPath = new URI(path);
+            return urlDecodedPath.getPath();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -154,7 +154,14 @@ public class TrackerTest {
     throws IOException, BencodeException, InterruptedException, NoSuchAlgorithmException {
         int listenPort = 7302;
         String filename = "trackerResponseBinary.data";
-        String path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
+        String path;
+        try {
+            path = Objects.requireNonNull(getClass().getClassLoader().getResource(filename)).getFile();
+            var urlDecodedPath = new URI(path);
+            path = urlDecodedPath.getPath();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
         List<TorrentFile> files = new ArrayList<>(0);
 
         byte[][] trackerResponse = new byte[][]{
