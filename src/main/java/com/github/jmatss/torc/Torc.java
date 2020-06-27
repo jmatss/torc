@@ -5,7 +5,7 @@ import com.github.jmatss.torc.util.com.ComMessage;
 import java.util.Scanner;
 import java.util.concurrent.ArrayBlockingQueue;
 
-public class View {
+public class Torc {
     public static final int QUEUE_SIZE = 10;
 
     public static void main(String[] args) {

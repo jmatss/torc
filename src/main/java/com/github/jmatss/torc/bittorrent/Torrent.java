@@ -1,7 +1,6 @@
 package com.github.jmatss.torc.bittorrent;
 
 import com.github.jmatss.torc.bencode.*;
-
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -10,13 +9,10 @@ import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static com.github.jmatss.torc.TMP_CONST.SHA1_HASH_LENGTH;
-import static com.github.jmatss.torc.bencode.BencodeString.fromBenString;
-import static com.github.jmatss.torc.bencode.BencodeString.toBenString;
 
 
 /**
@@ -69,14 +65,12 @@ public class Torrent {
     // Indicate of downloading/uploading of this torrent is paused.
     private boolean paused;
 
-    public Torrent(File f, byte[] peerId) throws BencodeException, IOException, NoSuchAlgorithmException {
-        if (!f.exists())
-            throw new IOException("File \"" + f.getAbsolutePath() + "\" doesn't exist.");
-        else if (!f.isFile())
-            throw new IOException("File \"" + f.getAbsolutePath() + "\" isn't a valid file.");
+    public Torrent(InputStream inputStream, byte[] peerId)
+    throws BencodeException, IOException, NoSuchAlgorithmException {
+        if (inputStream == null)
+            throw new IllegalArgumentException("InputStream is null.");
 
-        var bencode = new BencodeDecode(f);
-        Map<BencodeString, BencodeResult> torrentDictionary = bencode.getDictionary();
+        var torrentDictionary = Bencode.decodeDictionary(inputStream);
 
         this.mutex = new ReentrantLock();
         this.peerId = peerId;
@@ -84,48 +78,43 @@ public class Torrent {
         this.paused = false;
 
         // ANNOUNCE
-        BencodeResult announce = torrentDictionary.get(toBenString("announce"));
-        if (announce == null || announce.getType() != BencodeType.STRING)
-            throw new BencodeException("Incorrect \"announce\" field.");
-        this.announce = new URL(fromBenString(announce));
+        var announce = torrentDictionary.get(BencodeUtil.toBenString("announce"));
+        if (announce == null)
+            throw new BencodeException("\"announce\" field is null.");
+        this.announce = new URL(announce.getString());
 
         // INFO
-        BencodeResult infoResult = torrentDictionary.get(toBenString("info"));
-        if (infoResult == null || infoResult.getType() != BencodeType.DICTIONARY)
-            throw new BencodeException("Incorrect \"info\" field.");
-        @SuppressWarnings("unchecked")
-        var info = (Map<BencodeString, BencodeResult>) infoResult.getValue();
+        var infoResult = torrentDictionary.get(BencodeUtil.toBenString("info"));
+        if (infoResult == null)
+            throw new BencodeException("\"info\" field is null.");
+        var info = infoResult.getDictionary();
 
         // INFO_HASH
-        var bencodeEncode = new BencodeEncode(infoResult);
-        var content = bencodeEncode.encode();
+        var content = Bencode.encode(infoResult);
         this.infoHash = new InfoHash(content);
 
         // NAME
-        BencodeResult name = info.get(toBenString("name"));
-        if (name == null || name.getType() != BencodeType.STRING)
-            throw new BencodeException("Incorrect \"name\" field.");
-        this.name = Paths.get(fromBenString(name));
+        var name = info.get(BencodeUtil.toBenString("name"));
+        if (name == null)
+            throw new BencodeException("\"name\" field is null.");
+        this.name = Paths.get(name.getString());
 
         // PIECE LENGTH
-        BencodeResult pieceLength = info.get(toBenString("piece length"));
-        if (pieceLength == null || pieceLength.getType() != BencodeType.NUMBER)
-            throw new BencodeException("Incorrect \"piece length\" field.");
-        this.pieceLength = (long) pieceLength.getValue();
+        var pieceLength = info.get(BencodeUtil.toBenString("piece length"));
+        if (pieceLength == null)
+            throw new BencodeException("\"piece length\" field is null.");
+        this.pieceLength = pieceLength.getNumber();
 
         // PIECES
-        BencodeResult pieces = info.get(toBenString("pieces"));
-        if (pieces == null || pieces.getType() != BencodeType.STRING)
-            throw new BencodeException("Incorrect \"pieces\" field.");
-        var piecesBenString = (BencodeString) pieces.getValue();
-        if (piecesBenString.getBytes().length % SHA1_HASH_LENGTH != 0)
+        var pieces = info.get(BencodeUtil.toBenString("pieces"));
+        if (pieces == null)
+            throw new BencodeException("\"pieces\" field is null.");
+        var piecesBytes = pieces.getBytes();
+        if (piecesBytes.length % SHA1_HASH_LENGTH != 0)
             throw new BencodeException("Field \"pieces\" isn't divisible by sha1 length.");
 
-        ByteBuffer buffer = ByteBuffer
-                .allocate(piecesBenString.getBytes().length)
-                .put(piecesBenString.getBytes());
-        buffer.rewind();
-        this.pieces = new byte[piecesBenString.getBytes().length / SHA1_HASH_LENGTH][];
+        ByteBuffer buffer = ByteBuffer.wrap(piecesBytes);
+        this.pieces = new byte[piecesBytes.length / SHA1_HASH_LENGTH][];
         for (int i = 0; i < this.pieces.length; i++) {
             byte[] currentDigest = new byte[SHA1_HASH_LENGTH];
             buffer.get(currentDigest);
@@ -138,48 +127,45 @@ public class Torrent {
 
         // If true: this is a single-file torrent.
         // Else: this is a multi-file torrent.
-        if (!info.containsKey(toBenString("files"))) {
+        if (!info.containsKey(BencodeUtil.toBenString("files"))) {
             // LENGTH
-            BencodeResult length = info.get(toBenString("length"));
-            if (length == null || length.getType() != BencodeType.NUMBER)
-                throw new BencodeException("Incorrect \"length\" field.");
-            this.files = List.of(new TorrentFile(0, (long) length.getValue(), this.name));
+            var length = info.get(BencodeUtil.toBenString("length"));
+            if (length == null)
+                throw new BencodeException("\"length\" field is null.");
+            this.files = List.of(new TorrentFile(0, length.getNumber(), this.name));
         } else {
             // FILES
-            BencodeResult filesResult = info.get(toBenString("files"));
-            if (filesResult == null || filesResult.getType() != BencodeType.LIST)
-                throw new BencodeException("Incorrect \"files\" field.");
-            @SuppressWarnings("unchecked")
-            var files = (List<BencodeResult>) filesResult.getValue();
+            var filesResult = info.get(BencodeUtil.toBenString("files"));
+            if (filesResult == null)
+                throw new BencodeException("\"files\" field is null.");
+            var files = filesResult.getList();
 
             this.files = new ArrayList<>(files.size());
 
             int index = 0;
-            for (BencodeResult fileResult : files) {
+            for (BencodeData<Object> fileResult : files) {
                 // FILE
-                if (fileResult == null || fileResult.getType() != BencodeType.DICTIONARY)
-                    throw new BencodeException("Incorrect file inside \"files\" field.");
-                @SuppressWarnings("unchecked")
-                var file = (Map<BencodeString, BencodeResult>) fileResult.getValue();
+                if (fileResult == null)
+                    throw new BencodeException("File " + index + " inside \"files\" field is null.");
+                var file = fileResult.getDictionary();
 
                 // LENGTH
-                BencodeResult lengthResult = file.get(toBenString("length"));
-                if (lengthResult == null || lengthResult.getType() != BencodeType.NUMBER)
-                    throw new BencodeException("Incorrect length of file inside \"files\" field.");
-                long length = (long) lengthResult.getValue();
+                var lengthResult = file.get(BencodeUtil.toBenString("length"));
+                if (lengthResult == null)
+                    throw new BencodeException("null length in file " + index + " inside \"files\" field.");
+                long length = lengthResult.getNumber();
 
                 // PATH
-                BencodeResult pathResult = file.get(toBenString("path"));
-                if (pathResult == null || pathResult.getType() != BencodeType.LIST)
-                    throw new BencodeException("Incorrect path of file inside \"files\" field.");
-                @SuppressWarnings("unchecked")
-                var path = (List<BencodeResult>) pathResult.getValue();
+                var pathResult = file.get(BencodeUtil.toBenString("path"));
+                if (pathResult == null)
+                    throw new BencodeException("Incorrect path of file " + index + " inside \"files\" field.");
+                var path = pathResult.getList();
                 List<String> pathStrings = new ArrayList<>(path.size());
 
-                for (BencodeResult pathPiece : path) {
-                    if (pathPiece == null || pathPiece.getType() != BencodeType.STRING)
-                        throw new BencodeException("Incorrect path of file inside \"files\" field.");
-                    pathStrings.add(fromBenString(pathPiece));
+                for (BencodeData<Object> pathPiece : path) {
+                    if (pathPiece == null)
+                        throw new BencodeException("null path of file " + index + " inside \"files\" field.");
+                    pathStrings.add(BencodeUtil.fromBenString(pathPiece));
                 }
 
                 this.files.add(new TorrentFile(index, length, String.join(File.separator, pathStrings)));
@@ -189,7 +175,7 @@ public class Torrent {
     }
 
     public Torrent(String filename, byte[] peerId) throws IOException, BencodeException, NoSuchAlgorithmException {
-        this(new File(filename), peerId);
+        this(new FileInputStream(filename), peerId);
     }
 
     public Torrent lock() {

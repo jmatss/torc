@@ -1,7 +1,5 @@
 package com.github.jmatss.torc.bittorrent;
 
-import java.util.Arrays;
-
 public class Bitfield {
     private final byte[] bitfield;
     private final int amountOfPieces;
@@ -11,46 +9,80 @@ public class Bitfield {
         this.amountOfPieces = amountOfPieces;
     }
 
-    // Sets the piece with "index" to 1.
-    public synchronized void set(int index) {
-        outOfBoundsGuard(index);
-        this.bitfield[byteIndex(index)] |= (1 << shiftAmount(index));
+    private void _set(int index) {
+        int byteIndex = this.byteIndex(index);
+        int shiftAmount = this.shiftAmount(index);
+        this.bitfield[byteIndex] |= (1 << shiftAmount);
     }
 
-    // Tries to set "index" to 1. If "index" currently is 0, set it to 1 and return "true".
-    // Else, return false.
-    public synchronized boolean trySet(int index) {
-        outOfBoundsGuard(index);
-        if (!isSet(index)) {
-            set(index);
+    private void _unSet(int index) {
+        int byteIndex = this.byteIndex(index);
+        int shiftAmount = this.shiftAmount(index);
+        this.bitfield[byteIndex] &= ~(1 << shiftAmount);
+    }
+
+    /**
+     * Sets the piece with index `index` to 1. Returns true if the value
+     * was set to 1 or false if the value already is set to 1.
+     * 
+     * @param index the index of the piece to set.
+     */
+    public synchronized boolean set(int index) {
+        this.outOfBoundsGuard(index);
+        if (!this.isSet(index)) {
+            this._set(index);
             return true;
         } else {
             return false;
         }
     }
 
-    // Sets the piece with "index" to 0.
-    public synchronized void clear(int index) {
-        outOfBoundsGuard(index);
-        this.bitfield[byteIndex(index)] &= ~(1 << shiftAmount(index));
+    /**
+     * Sets the piece with index `index` to 0. Returns true if the value
+     * was set to 0 or false if the value already is set to 0.
+     * 
+     * @param index the index of the piece to set.
+     */
+    public synchronized boolean unSet(int index) {
+        this.outOfBoundsGuard(index);
+        if (this.isSet(index)) {
+            this._unSet(index);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     // Returns "true" if piece "index" contains a 1. Returns "false" if it contains a 0.
     public synchronized boolean isSet(int index) {
-        outOfBoundsGuard(index);
-        return (this.bitfield[byteIndex(index)] & (1 << shiftAmount(index))) > 0;
+        this.outOfBoundsGuard(index);
+        int byteIndex = this.byteIndex(index);
+        int shiftAmount = this.shiftAmount(index);
+        return (this.bitfield[byteIndex] & (1 << shiftAmount)) > 0;
     }
 
     public int getAmountOfPieces() {
         return this.amountOfPieces;
     }
 
-    // byteIndex is the index of the byte inside the "bitfield" array that contains the "real" index.
+    /**
+     * This function returns the byte index i.e. the position in the
+     * `bitField` array that corresponds to the given `index`.
+     * 
+     * @param index
+     * @return
+     */
     private int byteIndex(int index) {
         return index / 8;
     }
 
-    // shiftAmount represents how much the bit needs to be shifted left to get to the correct "bit index".
+    /**
+     * This function returns the amount that a bit needs to be shifted to line
+     * up inside a `bitField` byte corresponds to the given `index`.
+     * 
+     * @param index
+     * @return
+     */
     private int shiftAmount(int index) {
         return 7 - (index % 8);
     }
@@ -64,6 +96,13 @@ public class Bitfield {
 
     @Override
     public String toString() {
-        return Arrays.toString(this.bitfield);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < this.amountOfPieces; i++) {
+            sb.append(this.isSet(i) ? "1" : "0");
+            if (i > 0 && i % 8 == 0) {
+                sb.append("_");
+            }
+        }
+        return sb.toString();
     }
 }

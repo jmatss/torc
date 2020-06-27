@@ -30,7 +30,7 @@ public class InfoHash {
         if (other == this)
             return true;
         else if (other instanceof InfoHash)
-            return Arrays.equals(this.getBytes(), ((InfoHash) other).getBytes());
+            return Arrays.equals(this.getBytes(), ((InfoHash)other).getBytes());
         else
             return false;
     }

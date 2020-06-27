@@ -3,6 +3,9 @@ package com.github.jmatss.torc.bencode;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Represents the type of a value in a torrent file.
+ */
 public enum BencodeType {
     NUMBER('i'),
     LIST('l'),

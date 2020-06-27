@@ -3,8 +3,13 @@ package com.github.jmatss.torc.bencode;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
-import static com.github.jmatss.torc.TMP_CONST.ENCODING;
-
+/**
+ * This class is needed since strings in a bencoded file can be either
+ * UTF-8 encoded strings or binary data.
+ * 
+ * The UTF-8 strings will be stored as a String in java and the binary data
+ * will be stored as byes.
+ */
 public class BencodeString implements Comparable<BencodeString> {
     private final byte[] bytes;
     private final String string;
@@ -21,27 +26,24 @@ public class BencodeString implements Comparable<BencodeString> {
 
     @Override
     public int compareTo(BencodeString other) {
-        return this.getString().compareTo(other.getString());
+        return Arrays.compare(this.bytes, other.bytes);
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof BencodeString) {
-            BencodeString other = (BencodeString) o;
-            return Arrays.equals(this.getBytes(), other.getBytes()) && this.string.equals(other.string);
+        } else if (!(o instanceof BencodeString)) {
+            return false;
         }
 
-        return false;
+        BencodeString other = (BencodeString) o;
+        return Arrays.equals(this.getBytes(), other.getBytes());
     }
 
-    public static BencodeString toBenString(String s) throws UnsupportedEncodingException {
-        return new BencodeString(s, ENCODING);
-    }
-
-    public static String fromBenString(BencodeResult bencodeResult) throws BencodeException {
-        return ((BencodeString) bencodeResult.getValue()).getString();
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(this.bytes);
     }
 
     public byte[] getBytes() {

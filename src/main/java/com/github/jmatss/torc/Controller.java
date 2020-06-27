@@ -2,17 +2,21 @@ package com.github.jmatss.torc;
 
 import com.github.jmatss.torc.bittorrent.InfoHash;
 import com.github.jmatss.torc.bittorrent.Torrent;
-import com.github.jmatss.torc.util.com.ComChannel;
+import com.github.jmatss.torc.handler.TorrentHandler;
+import com.github.jmatss.torc.util.LockableHashMap;
 import com.github.jmatss.torc.util.com.ComMessage;
 import com.github.jmatss.torc.util.com.ComPropertyType;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static com.github.jmatss.torc.TMP_CONST.QUEUE_SIZE;
 
 public class Controller {
     public static final Logger LOGGER = Logger.getLogger(Controller.class.getName());
@@ -24,14 +28,11 @@ public class Controller {
     private final String rootPath;
     private final byte[] peerId;
 
-    // This ComChannel is used to send messages between this controller and the torrent handlers asynchronously.
-    // It will also receive messages from the View.
-    private final ComChannel comChannel;
+    // Buffers messages sent to this controller from either the View or a TorrentHandler.
+    private final BlockingQueue<ComMessage> messageBuffer;
 
-    private final BlockingQueue<ComMessage> sendToView;
-
-    // List of all "active" torrents in the client.
-    private final Map<InfoHash, Torrent> torrents;
+    // List of all "active" torrent handlers (one for every active torrent).
+    private final LockableHashMap<InfoHash, TorrentHandler> torrentHandlers;
 
     Controller(BlockingQueue<ComMessage> sendToView, BlockingQueue<ComMessage> receiver) {
         int processors = Runtime.getRuntime().availableProcessors();
@@ -40,15 +41,18 @@ public class Controller {
         this.rootPath = DOWNLOAD_ROOT_PATH;
         this.peerId = newPeerId();
 
-        this.comChannel = new ComChannel(receiver);
-        this.sendToView = sendToView;
+        this.messageBuffer = new ArrayBlockingQueue<>(QUEUE_SIZE);
 
-        this.torrents = getTorrentsFromDisk();
+        this.torrentHandlers = fetchTorrentsFromDisk();
         this.executor.submit(this::run);
     }
 
     public List<Runnable> shutdown() {
-        this.comChannel.sendChildren(ComMessage.shutdown());
+        try (var ignored = this.torrentHandlers.lock()) {
+            for (TorrentHandler handler : this.torrentHandlers.values()) {
+                //handler.shutdown();
+            }
+        }
         // TODO: maybe return exception instead of empty list.
         if (this.executor.isShutdown())
             return Collections.emptyList();
@@ -61,13 +65,14 @@ public class Controller {
         String filename;
         while (true) {
             try {
+                /*
                 message = this.comChannel.recvParent();
                 switch (message.getType()) {
                     case ADD:
                         infoHash = (InfoHash) message.getProperty(ComPropertyType.INFO_HASH.toString());
                         filename = (String) message.getProperty(ComPropertyType.FILENAME.toString());
                         var torrent = new Torrent(filename, getPeerId());
-                        this.torrents.put(infoHash, torrent);
+                        this.torrentHandlers.put(infoHash, torrent);
                         this.executor.submit(() -> TorrentHandler.run(torrent));
                         break;
                     case REMOVE:
@@ -90,7 +95,7 @@ public class Controller {
                         break;
                     case FATAL_ERROR:
                         infoHash = (InfoHash) message.getProperty(ComPropertyType.INFO_HASH.toString());
-                        this.torrents.remove(infoHash);
+                        this.torrentHandlers.remove(infoHash);
                         this.sendToView.add(message);
                         break;
                     case MOVE:
@@ -99,6 +104,7 @@ public class Controller {
                         this.comChannel.sendChild(ComMessage.rename(infoHash, filename));
                         break;
                 }
+                */
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, e.getMessage());
             }
@@ -130,13 +136,9 @@ public class Controller {
         return peerId.array();
     }
 
-    private List<Torrent> fetchTorrents() {
-        return Collections.emptyList();
-    }
-
     // TODO: implement logic for fetching torrent from previous session.
     //  Currently only returns an empty HashMap.
-    private Map<InfoHash, Torrent> getTorrentsFromDisk() {
-        return new HashMap<>();
+    private LockableHashMap<InfoHash, TorrentHandler> fetchTorrentsFromDisk() {
+        return new LockableHashMap<>();
     }
 }

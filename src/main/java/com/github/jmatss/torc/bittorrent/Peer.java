@@ -1,9 +1,7 @@
 package com.github.jmatss.torc.bittorrent;
 
 import java.net.InetAddress;
-import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.concurrent.locks.Lock;
 
 public class Peer {
     /*

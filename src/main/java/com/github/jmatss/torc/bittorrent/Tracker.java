@@ -3,6 +3,7 @@ package com.github.jmatss.torc.bittorrent;
 import com.github.jmatss.torc.bencode.*;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -14,8 +15,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static com.github.jmatss.torc.TMP_CONST.ENCODING;
-import static com.github.jmatss.torc.bencode.BencodeString.fromBenString;
-import static com.github.jmatss.torc.bencode.BencodeString.toBenString;
 
 public class Tracker {
     public static long DEFAULT_INTERVAL = 10; // seconds
@@ -110,8 +109,7 @@ public class Tracker {
                         "" + responseCode + " (" + conn.getResponseMessage() + ")");
             }
 
-            byte[] content = conn.getInputStream().readAllBytes();
-            updateFromResponse(content);
+            this.updateFromResponse(conn.getInputStream());
 
         } finally {
             if (conn != null) {
@@ -132,18 +130,16 @@ public class Tracker {
         return URLEncode(String.valueOf(l));
     }
 
-    public void updateFromResponse(byte[] content)
+    public void updateFromResponse(InputStream inputStream)
     throws IOException, BencodeException {
-        var bencode = new BencodeDecode(content);
-        Map<BencodeString, BencodeResult> responseDictionary = bencode.getDictionary();
+        var responseDictionary = Bencode.decodeDictionary(inputStream);
 
         // FAILURE REASON
         // If (failure reason is empty): the request went as expected, else: something failed.
-        BencodeResult failureReasonResult = responseDictionary.get(toBenString("failure reason"));
-        if (failureReasonResult == null || failureReasonResult.getType() != BencodeType.STRING) {
-            throw new BencodeException("Incorrect \"failure reason\" field.");
-        }
-        String failureReason = fromBenString(failureReasonResult);
+        var failureReasonResult = responseDictionary.get(BencodeUtil.toBenString("failure reason"));
+        if (failureReasonResult == null)
+            throw new BencodeException("\"failure reason\" field is null.");
+        String failureReason = BencodeUtil.fromBenString(failureReasonResult);
         if (!failureReason.isEmpty())
             throw new IOException("Received failure from tracker: " + failureReason);
 
@@ -151,38 +147,33 @@ public class Tracker {
         try {
 
             // INTERVAL
-            BencodeResult intervalResult = responseDictionary.get(toBenString("interval"));
-            if (intervalResult == null || intervalResult.getType() != BencodeType.NUMBER) {
-                throw new BencodeException("Incorrect \"interval\" field.");
-            }
-            long interval = (long) intervalResult.getValue();
+            var intervalResult = responseDictionary.get(BencodeUtil.toBenString("interval"));
+            if (intervalResult == null)
+                throw new BencodeException("\"interval\" field is null.");
+            long interval = intervalResult.getNumber();
 
             // TRACKER ID
-            BencodeResult trackerIdResult = responseDictionary.get(toBenString("tracker id"));
-            if (trackerIdResult == null || trackerIdResult.getType() != BencodeType.STRING) {
-                throw new BencodeException("Incorrect \"tracker id\" field.");
-            }
-            String trackerId = fromBenString(trackerIdResult);
+            var trackerIdResult = responseDictionary.get(BencodeUtil.toBenString("tracker id"));
+            if (trackerIdResult == null)
+                throw new BencodeException("\"tracker id\" field is null.");
+            String trackerId = trackerIdResult.getString();
 
             // SEEDERS (complete)
-            BencodeResult seedersResult = responseDictionary.get(toBenString("complete"));
-            if (seedersResult == null || seedersResult.getType() != BencodeType.NUMBER) {
-                throw new BencodeException("Incorrect \"complete\"(seeders) field.");
-            }
-            long seeders = (long) seedersResult.getValue();
+            var seedersResult = responseDictionary.get(BencodeUtil.toBenString("complete"));
+            if (seedersResult == null)
+                throw new BencodeException("\"complete\"(seeders) field is null.");
+            long seeders = seedersResult.getNumber();
 
             // LEECHERS (incomplete)
-            BencodeResult leecehersResult = responseDictionary.get(toBenString("incomplete"));
-            if (leecehersResult == null || leecehersResult.getType() != BencodeType.NUMBER) {
-                throw new BencodeException("Incorrect \"incomplete\"(leechers) field.");
-            }
-            long leechers = (long) leecehersResult.getValue();
+            var leecehersResult = responseDictionary.get(BencodeUtil.toBenString("incomplete"));
+            if (leecehersResult == null)
+                throw new BencodeException("\"incomplete\"(leechers) field is null.");
+            long leechers = leecehersResult.getNumber();
 
             // PEERS
-            BencodeResult peersResult = responseDictionary.get(toBenString("peers"));
-            if (peersResult == null) {
-                throw new BencodeException("Incorrect \"peers\" field.");
-            }
+            var peersResult = responseDictionary.get(BencodeUtil.toBenString("peers"));
+            if (peersResult == null)
+                throw new BencodeException("\"peers\" field is null.");
 
             // If (LIST): The peer list is a "dictionary model".
             // Else if (STRING): The peer list is a "binary model".
@@ -192,46 +183,41 @@ public class Tracker {
                 /*
                     DICTIONARY MODEL
                  */
-                @SuppressWarnings("unchecked")
-                var peersList = (List<BencodeResult>) peersResult.getValue();
-                for (BencodeResult peerResult : peersList) {
+                var peersList = peersResult.getList();
+                for (BencodeData<Object> peerResult : peersList) {
 
-                    if (peerResult.getType() != BencodeType.DICTIONARY) {
+                    if (peerResult.getType() != BencodeType.DICTIONARY)
                         throw new BencodeException("Incorrect \"peers\" field, expected dictionary model.");
-                    }
-                    @SuppressWarnings("unchecked")
-                    var peerDictionary = (Map<BencodeString, BencodeResult>) peerResult.getValue();
+                    var peerDictionary = peerResult.getDictionary();
                     // (PEER ID is ignored)
+
                     // IP
-                    BencodeResult ipResult = peerDictionary.get(toBenString("ip"));
-                    if (ipResult == null || ipResult.getType() != BencodeType.STRING) {
-                        throw new BencodeException("Incorrect \"ip\" field of a peer.");
+                    var ipResult = peerDictionary.get(BencodeUtil.toBenString("ip"));
+                    if (ipResult == null) {
+                        throw new BencodeException("\"ip\" field of a peer is null.");
                     }
-                    String ip = fromBenString(ipResult);
+                    String ip = ipResult.getString();
 
                     // PORT
-                    BencodeResult portResult = peerDictionary.get(toBenString("port"));
-                    if (portResult == null || portResult.getType() != BencodeType.NUMBER) {
-                        throw new BencodeException("Incorrect \"port\" field of a peer.");
+                    var portResult = peerDictionary.get(BencodeUtil.toBenString("port"));
+                    if (portResult == null) {
+                        throw new BencodeException("\"port\" field of a peer is null.");
                     }
-                    long port = (long) portResult.getValue();
+                    long port = portResult.getNumber();
 
                     // PEER
-                    newPeers.add(new Peer(ip, (int) port));
+                    newPeers.add(new Peer(ip, (int)port));
                 }
             } else if (peersResult.getType() == BencodeType.STRING) {
                 /*
                     BINARY MODEL
                  */
-                BencodeString peersString = (BencodeString) peersResult.getValue();
-                if (peersString.getBytes().length % 6 != 0) {
+                var peersBytes = peersResult.getBytes();
+                if (peersBytes.length % 6 != 0) {
                     throw new BencodeException("Binary model peers list not divisible by 6 (4 byte ip + 2 byte port).");
                 }
 
-                ByteBuffer buffer = ByteBuffer
-                        .allocate(peersString.getBytes().length)
-                        .put(peersString.getBytes());
-                buffer.rewind();
+                ByteBuffer buffer = ByteBuffer.wrap(peersBytes);
 
                 byte[] ipBuf = new byte[4];
                 byte[] portBuf = new byte[2];
@@ -246,7 +232,7 @@ public class Tracker {
                     newPeers.add(new Peer(ip, port));
                 }
             } else {
-                throw new BencodeException("Incorrect format of peers.");
+                throw new BencodeException("Incorrect format of peers. Peers where neither List or String.");
             }
 
             this.trackerId = trackerId;

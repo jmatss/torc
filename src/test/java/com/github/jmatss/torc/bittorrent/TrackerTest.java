@@ -78,7 +78,7 @@ public class TrackerTest {
         // It will gather the headers in the headers map so that they can be checked.
         var infoHash = new InfoHash("".getBytes());
         var tracker = new Tracker(files, infoHash, peerId);
-        var headers = new HashMap<String, String>();
+        var headers = new TreeMap<String, String>();
         Thread serverThread = new Thread(
                 () -> {
                     try (
